@@ -82,6 +82,7 @@ class WarmstartedRandomForestWithInstances(RandomForestWithInstances):
         self.warmstart_models = warmstart_models
         self.weights = []
 
+        self.logger = logging.getLogger("WarmstartedRandomForestWithInstances")
 
     def train(self, X, y, **kwargs):
         """Trains the random forest on X and y.
@@ -98,16 +99,37 @@ class WarmstartedRandomForestWithInstances(RandomForestWithInstances):
         self
         """
         
-        super(RandomForestWithInstances,self).train(X,y)
+        super(WarmstartedRandomForestWithInstances,self).train(X,y)
+
+        y_pred = super(WarmstartedRandomForestWithInstances,self).predict(X)[0]
+        tau = self._do_test(y=y, y_pred=y_pred)
         
-        self.weights = []
+        self.weights = [tau]
         for model in self.warmstart_models:
-            y_pred = model.predict(X)
-            tau, _p_value = sp.stats.kendalltau(x=y, y=y_pred)
-            tau = (tau + 1) /2 # scale to [0,1]; original scale [-1,1]
+            y_pred = model.predict(X)[0]
+            tau = self._do_test(y=y, y_pred=y_pred)
             self.weights.append(tau)
+
+        self.logger.debug("Model weights: %s" %(str(self.weights)))
+            
+        sum_weights = np.sum(self.weights)
+        if sum_weights == 0:
+            self.weights = np.zeros((len(self.weights))) + 1/len(self.weights)
+        else:
+            self.weights = np.array(self.weights) / sum_weights
+        
+        self.logger.debug("Normalized Model weights: %s" %(str(self.weights)))
             
         return self
+    
+    def _do_test(self, y, y_pred):
+        tau, _p_value = sp.stats.kendalltau(x=y, y=y_pred)
+        if tau < 0: # anti correlated -> weight of 0
+            tau = 0
+        elif np.isnan(tau): #if X has only one sample
+                tau = 0
+        return tau
+    
 
     def predict(self, X):
         """Predict means and variances for given X.
@@ -125,19 +147,19 @@ class WarmstartedRandomForestWithInstances(RandomForestWithInstances):
             Predictive variance
         """
         
-        weights = self.weights[:]
-        weights.insert(0,1) # model at hand is fully trustworthy
-        ys = []
-        ys.append(super(RandomForestWithInstances,self).predict(X))
+        weights = self.weights
+        base_pred = super(WarmstartedRandomForestWithInstances,self).predict(X)
+        means = [base_pred[0]]
+        vars = [base_pred[1]]
         
         for model in self.warmstart_models:
-            ys.append(model.predict(X))
-        means = np.array([y[0] for y in ys])
-        vars = np.array([y[1] for y in ys])
+            warm_y = model.predict(X)
+            means.append(warm_y[0])
+            vars.append(warm_y[1])
 
-        mean = np.average(means, weights=weights)
-        var_of_means = np.average((means - mean)**2, weights=weights)
-        var = np.average(vars, weights=weights) + var_of_means
+        mean = np.average(means, weights=weights, axis=0)
+        var_of_means = np.average((means - mean)**2, weights=weights, axis=0)
+        var = np.average(vars, weights=weights, axis=0) + var_of_means
         
         return mean, var  
         

@@ -24,6 +24,7 @@ from smac.smbo.objective import average_cost
 from smac.smbo.acquisition import EI, AbstractAcquisitionFunction
 from smac.smbo.local_search import LocalSearch
 from smac.epm.rf_with_instances import RandomForestWithInstances
+from smac.epm.rf_with_instances_warmstarted import WarmstartedRandomForestWithInstances
 from smac.epm.rfr_imputator import RFRImputator
 from smac.epm.base_epm import AbstractEPM
 from smac.utils.util_funcs import get_types
@@ -51,6 +52,7 @@ class SMAC(object):
                  runhistory2epm: AbstractRunHistory2EPM=None,
                  initial_design: InitialDesign=None,
                  initial_configurations: typing.List[Configuration]=None,
+                 warmstart_runhistories: typing.List[RunHistory]=None,
                  stats: Stats=None,
                  rng: np.random.RandomState=None):
         '''
@@ -169,7 +171,6 @@ class SMAC(object):
         if tae_runner.runhistory is None:
             tae_runner.runhistory = runhistory
 
-
         # initial intensification
         if intensifier is None:
             intensifier = Intensifier(tae_runner=tae_runner,
@@ -188,7 +189,7 @@ class SMAC(object):
         if initial_design is not None and initial_configurations is not None:
             raise ValueError(
                 "Either use initial_design or initial_configurations; but not both")
-            
+
         if initial_configurations is not None:
             initial_design = MultiConfigInitialDesign(tae_runner=tae_runner,
                                                       scenario=scenario,
@@ -196,7 +197,7 @@ class SMAC(object):
                                                       traj_logger=traj_logger,
                                                       runhistory=runhistory,
                                                       rng=rng,
-                                                      configs=initial_configurations, 
+                                                      configs=initial_configurations,
                                                       intensifier=intensifier,
                                                       aggregate_func=aggregate_func)
         elif initial_design is None:
@@ -252,6 +253,20 @@ class SMAC(object):
             else:
                 raise ValueError('Unknown run objective: %s. Should be either '
                                  'quality or runtime.' % self.scenario.run_obj)
+
+        if warmstart_runhistories:
+            warmstart_models = []
+            for rh in warmstart_runhistories:
+                X, y = runhistory2epm.transform(rh)
+                model = RandomForestWithInstances(types=types,
+                                                  instance_features=scenario.feature_array,
+                                                  seed=rng.randint(MAXINT))
+                model.train(X, y)
+                warmstart_models.append(model)
+            model = WarmstartedRandomForestWithInstances(types=types,
+                                                         instance_features=scenario.feature_array,
+                                                         seed=rng.randint(MAXINT),
+                                                         warmstart_models=warmstart_models)
 
         self.solver = SMBO(scenario=scenario,
                            stats=self.stats,
