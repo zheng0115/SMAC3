@@ -64,6 +64,9 @@ class CMDReader(object):
                               help=SUPPRESS)# list of trajectory dump files, 
                                             # reads runhistory 
                                             # and uses final incumbent as challenger 
+        req_opts.add_argument("--warmstart_mode", default="FULL",
+                              choices = ["FULL","WEIGHTED"],
+                              help=SUPPRESS)
 
         args_, misc = parser.parse_known_args()
         self._check_args(args_)
