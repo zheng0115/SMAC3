@@ -281,7 +281,7 @@ class SMAC(object):
                                                          seed=rng.randint(
                                                              MAXINT),
                                                          warmstart_models=warmstart_models)
-            runhistory2epm.scenario = scen
+            runhistory2epm.scenario = scenario
 
         self.solver = SMBO(scenario=scenario,
                            stats=self.stats,
