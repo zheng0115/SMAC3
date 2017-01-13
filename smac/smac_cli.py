@@ -69,6 +69,7 @@ class SMACCLI(object):
                     aggregate_func=aggregate_func)
             elif args_.warmstart_mode == "WEIGHTED":
                 warm_runhistories = []
+                warm_scenarios = []
                 if len(args_.warmstart_runhistory) != len(args_.warmstart_scenario):
                     raise ValueError(
                         "warmstart_runhistory and warmstart_scenario have to have the same lengths")
