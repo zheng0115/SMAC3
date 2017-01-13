@@ -34,7 +34,7 @@ from smac.configspace import Configuration
 
 
 __author__ = "Marius Lindauer"
-__copyright__ = "Copyright 2016, ML4AAD"
+__copyright__ = "Copyright 2017, ML4AAD"
 __license__ = "3-clause BSD"
 
 
@@ -53,6 +53,7 @@ class SMAC(object):
                  initial_design: InitialDesign=None,
                  initial_configurations: typing.List[Configuration]=None,
                  warmstart_runhistories: typing.List[RunHistory]=None,
+                 warmstart_scenarios: typing.List[Scenario]=None,
                  stats: Stats=None,
                  rng: np.random.RandomState=None):
         '''
@@ -87,6 +88,13 @@ class SMAC(object):
         initial_configuration: typing.List[Configuration]
             list of initial configurations for initial design -- 
             cannot be used togehter with initial_design
+        warmstart_runhistories: typing.List[RunHistory],
+            RunHistory objects to initialize 
+            WarmstartedRandomForestWithInstances as EPM 
+        warmstart_scenarios: typing.List[scenario],
+            Scenario objects to provide information
+            how to interpret warmstart_runhistories;
+            has to have the same length as warmstart_runhistories
         stats: Stats
             optional stats object
         rng: np.random.RandomState
@@ -255,8 +263,13 @@ class SMAC(object):
                                  'quality or runtime.' % self.scenario.run_obj)
 
         if warmstart_runhistories:
+            if len(warmstart_runhistories) != len(warmstart_scenarios):
+                raise ValueError(
+                    "warmstart_runhistories and warmstart_scenarios have to have the same length")
             warmstart_models = []
-            for rh in warmstart_runhistories:
+            for rh, scen in zip(warmstart_runhistories, warmstart_scenarios):
+                # patch runhistory to use warmstart_scenario
+                runhistory2epm.scenario = scen
                 X, y = runhistory2epm.transform(rh)
                 model = RandomForestWithInstances(types=types,
                                                   instance_features=scenario.feature_array,
@@ -265,8 +278,10 @@ class SMAC(object):
                 warmstart_models.append(model)
             model = WarmstartedRandomForestWithInstances(types=types,
                                                          instance_features=scenario.feature_array,
-                                                         seed=rng.randint(MAXINT),
+                                                         seed=rng.randint(
+                                                             MAXINT),
                                                          warmstart_models=warmstart_models)
+            runhistory2epm.scenario = scen
 
         self.solver = SMBO(scenario=scenario,
                            stats=self.stats,

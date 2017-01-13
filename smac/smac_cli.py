@@ -13,11 +13,8 @@ from smac.utils.merge_foreign_data import merge_foreign_data_from_file
 from smac.utils.io.traj_logging import TrajLogger
 
 __author__ = "Marius Lindauer"
-__copyright__ = "Copyright 2015, ML4AAD"
+__copyright__ = "Copyright 2017, ML4AAD"
 __license__ = "3-clause BSD"
-__maintainer__ = "Marius Lindauer"
-__email__ = "lindauer@cs.uni-freiburg.de"
-__version__ = "0.0.1"
 
 
 class SMACCLI(object):
@@ -57,6 +54,7 @@ class SMACCLI(object):
 
         rh = None
         warm_runhistories = None
+        warm_scenarios = None
         if args_.warmstart_runhistory:
             aggregate_func = average_cost
             if args_.warmstart_mode == "FULL":
@@ -71,18 +69,25 @@ class SMACCLI(object):
                     aggregate_func=aggregate_func)
             elif args_.warmstart_mode == "WEIGHTED":
                 warm_runhistories = []
+                if len(args_.warmstart_runhistory) != len(args_.warmstart_scenario):
+                    raise ValueError(
+                        "warmstart_runhistory and warmstart_scenario have to have the same lengths")
                 for rh_fn in args_.warmstart_runhistory:
                     warm_rh = RunHistory(aggregate_func=aggregate_func)
                     warm_rh.load_json(fn=rh_fn, cs=scen.cs)
                     warm_runhistories.append(warm_rh)
-                    
+                for warm_scen in args_.warmstart_scenario:
+                    warm_scenarios.append(
+                        Scenario(scenario=warm_scen, cmd_args={"output_dir": ""}))
+
         if args_.modus == "SMAC":
             optimizer = SMAC(
                 scenario=scen,
                 rng=np.random.RandomState(args_.seed),
                 runhistory=rh,
                 initial_configurations=initial_configs,
-                warmstart_runhistories=warm_runhistories)
+                warmstart_runhistories=warm_runhistories,
+                warmstart_scenarios=warm_scenarios)
         elif args_.modus == "ROAR":
             optimizer = ROAR(
                 scenario=scen,
@@ -98,4 +103,3 @@ class SMACCLI(object):
                 optimizer.solver.runhistory.save_json(
                     fn=os.path.join(scen.output_dir, "runhistory.json"))
         #smbo.runhistory.load_json(fn="runhistory.json", cs=smbo.config_space)
-
