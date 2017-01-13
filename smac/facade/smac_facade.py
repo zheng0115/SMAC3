@@ -267,9 +267,11 @@ class SMAC(object):
                 raise ValueError(
                     "warmstart_runhistories and warmstart_scenarios have to have the same length")
             warmstart_models = []
-            for rh, scen in zip(warmstart_runhistories, warmstart_scenarios):
+            for rh, warm_scen in zip(warmstart_runhistories, warmstart_scenarios):
                 # patch runhistory to use warmstart_scenario
-                runhistory2epm.scenario = scen
+                runhistory2epm.scenario = warm_scen
+                runhistory2epm.instance_features = warm_scen.feature_dict
+                runhistory2epm.n_feats = warm_scen.n_features
                 X, y = runhistory2epm.transform(rh)
                 model = RandomForestWithInstances(types=types,
                                                   instance_features=scenario.feature_array,
@@ -282,6 +284,8 @@ class SMAC(object):
                                                              MAXINT),
                                                          warmstart_models=warmstart_models)
             runhistory2epm.scenario = scenario
+            runhistory2epm.instance_features = scenario.feature_dict
+            runhistory2epm.n_feats = scenario.n_features
 
         self.solver = SMBO(scenario=scenario,
                            stats=self.stats,
