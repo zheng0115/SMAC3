@@ -273,8 +273,9 @@ class SMAC(object):
                 runhistory2epm.instance_features = warm_scen.feature_dict
                 runhistory2epm.n_feats = warm_scen.n_features
                 X, y = runhistory2epm.transform(rh)
-                model = RandomForestWithInstances(types=types,
-                                                  instance_features=scenario.feature_array,
+                warm_types = get_types(warm_scen.cs, warm_scen.feature_array)
+                model = RandomForestWithInstances(types=warm_types,
+                                                  instance_features=warm_scen.feature_array,
                                                   seed=rng.randint(MAXINT))
                 model.train(X, y)
                 warmstart_models.append(model)
