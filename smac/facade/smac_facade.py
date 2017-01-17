@@ -268,6 +268,8 @@ class SMAC(object):
                     "warmstart_runhistories and warmstart_scenarios have to have the same length")
             warmstart_models = []
             for rh, warm_scen in zip(warmstart_runhistories, warmstart_scenarios):
+                if not rh.data: # skip empty rh
+                    continue
                 # patch runhistory to use warmstart_scenario
                 runhistory2epm.scenario = warm_scen
                 runhistory2epm.instance_features = warm_scen.feature_dict
