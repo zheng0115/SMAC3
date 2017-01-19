@@ -170,6 +170,9 @@ class RandomForestWithInstances(AbstractEPM):
             n_instance_features = self.instance_features.shape[1]
             n_instances = len(self.instance_features)
 
+        if X.shape[1] == self.types.shape[0]:
+            X = X[:,:self.types.shape[0]-n_instance_features]
+
         if len(X.shape) != 2:
             raise ValueError(
                 'Expected 2d array, got %dd array!' % len(X.shape))
@@ -177,7 +180,7 @@ class RandomForestWithInstances(AbstractEPM):
             raise ValueError('Rows in X should have %d entries but have %d!' %
                              (self.types.shape[0] - n_instance_features,
                               X.shape[1]))
-
+            
         mean = np.zeros(X.shape[0])
         var = np.zeros(X.shape[0])
         for i, x in enumerate(X):

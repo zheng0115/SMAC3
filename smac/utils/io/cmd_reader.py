@@ -65,7 +65,7 @@ class CMDReader(object):
                                             # reads runhistory 
                                             # and uses final incumbent as challenger 
         req_opts.add_argument("--warmstart_mode", default="FULL",
-                              choices = ["FULL","WEIGHTED"],
+                              choices = ["FULL","WEIGHTED","TRANSFER"],
                               help=SUPPRESS)
 
         args_, misc = parser.parse_known_args()

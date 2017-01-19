@@ -75,7 +75,6 @@ class LocalSearch(object):
         acq_val_incumbent = self.acquisition_function(
                                             incumbent_.get_array(),
                                             *args)
-
         local_search_steps = 0
         neighbors_looked_at = 0
         time_n = []

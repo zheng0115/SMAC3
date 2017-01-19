@@ -21,7 +21,7 @@ from smac.initial_design.multi_config_initial_design import \
 from smac.intensification.intensification import Intensifier
 from smac.smbo.smbo import SMBO
 from smac.smbo.objective import average_cost
-from smac.smbo.acquisition import EI, AbstractAcquisitionFunction
+from smac.smbo.acquisition import EI, AbstractAcquisitionFunction, WARM_EI
 from smac.smbo.local_search import LocalSearch
 from smac.epm.rf_with_instances import RandomForestWithInstances
 from smac.epm.rf_with_instances_warmstarted import WarmstartedRandomForestWithInstances
@@ -54,6 +54,7 @@ class SMAC(object):
                  initial_configurations: typing.List[Configuration]=None,
                  warmstart_runhistories: typing.List[RunHistory]=None,
                  warmstart_scenarios: typing.List[Scenario]=None,
+                 warmstart_mode: str=None,
                  stats: Stats=None,
                  rng: np.random.RandomState=None):
         '''
@@ -95,6 +96,8 @@ class SMAC(object):
             Scenario objects to provide information
             how to interpret warmstart_runhistories;
             has to have the same length as warmstart_runhistories
+        warmstart_mode: str,
+            has to be in ["FULL","WEIGHTED","TRANSFER"] 
         stats: Stats
             optional stats object
         rng: np.random.RandomState
@@ -131,13 +134,6 @@ class SMAC(object):
             model = RandomForestWithInstances(types=types,
                                               instance_features=scenario.feature_array,
                                               seed=rng.randint(MAXINT))
-        # initial acquisition function
-        if acquisition_function is None:
-            acquisition_function = EI(model=model)
-
-        # initialize optimizer on acquisition function
-        local_search = LocalSearch(acquisition_function,
-                                   scenario.cs)
 
         # initialize tae_runner
         # First case, if tae_runner is None, the target algorithm is a call
@@ -276,19 +272,33 @@ class SMAC(object):
                 runhistory2epm.n_feats = warm_scen.n_features
                 X, y = runhistory2epm.transform(rh)
                 warm_types = get_types(warm_scen.cs, warm_scen.feature_array)
-                model = RandomForestWithInstances(types=warm_types,
+                warm_model = RandomForestWithInstances(types=warm_types,
                                                   instance_features=warm_scen.feature_array,
                                                   seed=rng.randint(MAXINT))
-                model.train(X, y)
-                warmstart_models.append(model)
-            model = WarmstartedRandomForestWithInstances(types=types,
+                warm_model.train(X, y)
+                warmstart_models.append(warm_model)
+                
+            if warmstart_mode == "WEIGHTED":
+                self.logger.info("Use \"weighted\" warmstart strategy")
+                model = WarmstartedRandomForestWithInstances(types=types,
                                                          instance_features=scenario.feature_array,
                                                          seed=rng.randint(
                                                              MAXINT),
                                                          warmstart_models=warmstart_models)
+            elif warmstart_mode == "TRANSFER":
+                self.logger.info("Use \"weighted\" warmstart strategy")
+                acquisition_function = WARM_EI(model=model, warm_models=warmstart_models)
             runhistory2epm.scenario = scenario
             runhistory2epm.instance_features = scenario.feature_dict
             runhistory2epm.n_feats = scenario.n_features
+
+        # initial acquisition function
+        if acquisition_function is None:
+            acquisition_function = EI(model=model)
+
+        # initialize optimizer on acquisition function
+        local_search = LocalSearch(acquisition_function,
+                                   scenario.cs)
 
         self.solver = SMBO(scenario=scenario,
                            stats=self.stats,

@@ -67,7 +67,7 @@ class SMACCLI(object):
                     in_runhistory_fn_list=args_.warmstart_runhistory,
                     cs=scen.cs,
                     aggregate_func=aggregate_func)
-            elif args_.warmstart_mode == "WEIGHTED":
+            elif args_.warmstart_mode in ["WEIGHTED", "TRANSFER"]:
                 warm_runhistories = []
                 warm_scenarios = []
                 if len(args_.warmstart_runhistory) != len(args_.warmstart_scenario):
@@ -88,7 +88,8 @@ class SMACCLI(object):
                 runhistory=rh,
                 initial_configurations=initial_configs,
                 warmstart_runhistories=warm_runhistories,
-                warmstart_scenarios=warm_scenarios)
+                warmstart_scenarios=warm_scenarios,
+                warmstart_mode=args_.warmstart_mode)
         elif args_.modus == "ROAR":
             optimizer = ROAR(
                 scenario=scen,
