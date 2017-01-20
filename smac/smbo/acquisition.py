@@ -236,7 +236,9 @@ class WARM_EI(EI):
         transfer_y = [[t] for t in transfer_y]
         #for ey,ty in zip(ei_y,transfer_y):
             #self.logger.debug("EI: %f + Transfer: %f" %(ey[0],ty[0]))
-        return ei_y + transfer_y
+        # since we maximize ACQ, but minimized transfer_y,
+        # we have to ei + -1* transfer
+        return ei_y - transfer_y
 
 
 class EIPS(EI):
