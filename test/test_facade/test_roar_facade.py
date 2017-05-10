@@ -1,4 +1,5 @@
 import unittest
+import shutil
 
 import numpy as np
 
@@ -15,7 +16,11 @@ class TestROARFacade(unittest.TestCase):
 
     def setUp(self):
         self.cs = ConfigurationSpace()
-        self.scenario = Scenario({'cs': self.cs, 'run_obj': 'quality'})
+        self.scenario = Scenario({'cs': self.cs, 'run_obj': 'quality',
+                                  'output_dir': 'test/test_files/tmp_output'})
+
+    def tearDown(self):
+        shutil.rmtree('test/test_files/tmp_output')
 
     def test_inject_stats_and_runhistory_object_to_TAE(self):
         ta = ExecuteTAFuncArray(lambda x: x**2)

@@ -1,4 +1,5 @@
 import unittest
+import shutil
 
 import numpy as np
 
@@ -21,8 +22,12 @@ class TestSingleInitialDesign(unittest.TestCase):
     def setUp(self):
         self.cs = ConfigurationSpace()
         self.cs.add_hyperparameter(UniformFloatHyperparameter(name="x1", lower=1, upper=10, default=2))
-        self.scenario = Scenario({'cs': self.cs, 'run_obj': 'quality'})
+        self.scenario = Scenario({'cs': self.cs, 'run_obj': 'quality',
+                                  'output_dir': 'test/test_files/tmp_output'})
         self.ta = ExecuteTAFuncDict(lambda x: x["x1"]**2)
+
+    def tearDown(self):
+        shutil.rmtree('test/test_files/tmp_output')
 
     def test_single_default_config_design(self):
         stats = Stats(scenario=self.scenario)
