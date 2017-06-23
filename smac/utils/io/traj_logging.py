@@ -90,7 +90,8 @@ class TrajLogger(object):
             self._add_in_old_format(train_perf, incumbent_id, incumbent,
                                     ta_time_used, wallclock_time)
             self._add_in_aclib_format(train_perf, incumbent_id, incumbent,
-                                      ta_time_used, wallclock_time)
+                                      ta_time_used, wallclock_time,
+                                      self.stats.ta_runs)
 
     def _add_in_old_format(self, train_perf, incumbent_id, incumbent,
                            ta_time_used, wallclock_time):
@@ -127,7 +128,8 @@ class TrajLogger(object):
             ))
 
     def _add_in_aclib_format(self, train_perf, incumbent_id, incumbent,
-                             ta_time_used, wallclock_time):
+                             ta_time_used, wallclock_time,
+                             evaluations):
         """
             adds entries to AClib2-like trajectory file
 
@@ -153,7 +155,7 @@ class TrajLogger(object):
         traj_entry = {"cpu_time": ta_time_used,
                       "total_cpu_time": None,  # TODO: fix this
                       "wallclock_time": wallclock_time,
-                      "evaluations": self.stats.ta_runs,
+                      "evaluations": evaluations,
                       "cost": train_perf,
                       "incumbent": conf
                       }
