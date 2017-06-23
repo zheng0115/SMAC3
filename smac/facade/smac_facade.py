@@ -221,6 +221,13 @@ class SMAC(object):
                                                       configs=initial_configurations,
                                                       intensifier=intensifier,
                                                       aggregate_func=aggregate_func)
+        elif scenario.shared_model and scenario.run_id > 1:
+            # stronger diversification for pSMAC
+            initial_design = RandomConfiguration(tae_runner=tae_runner,
+                                                     scenario=scenario,
+                                                     stats=self.stats,
+                                                     traj_logger=traj_logger,
+                                                     rng=rng)
         elif initial_design is None:
             if scenario.initial_incumbent == "DEFAULT":
                 initial_design = DefaultConfiguration(tae_runner=tae_runner,

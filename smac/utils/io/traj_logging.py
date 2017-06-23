@@ -113,6 +113,7 @@ class TrajLogger(object):
         """
 
         conf = []
+        print(incumbent)
         for p in incumbent:
             if not incumbent[p] is None:
                 conf.append("%s='%s'" % (p, repr(incumbent[p])))
