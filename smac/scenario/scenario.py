@@ -107,6 +107,7 @@ class Scenario(object):
 
         self._transform_arguments()
 
+        self.run_id = run_id
         if self.output_dir:
             self.output_dir += "_run%d" %(run_id)
 
@@ -313,7 +314,7 @@ class Scenario(object):
                               datetime.datetime.fromtimestamp(
                                   time.time()).strftime(
                                   '%Y-%m-%d_%H:%M:%S_(%f)')))
-        self.add_argument(name='input_psmac_dirs', default=None,
+        self.add_argument(name='input_psmac_dirs', default="smac3-output*",
                           help="For parallel SMAC, multiple output-directories "
                                "are used.")
         self.add_argument(name='shared_model',
@@ -419,11 +420,6 @@ class Scenario(object):
             self.logger.debug("Deactivate output directory.")
         else:
             self.logger.info("Output to %s" % (self.output_dir))
-
-        if self.shared_model and self.input_psmac_dirs is None:
-            # per default, we assume that
-            # all psmac runs write to the same directory
-            self.input_psmac_dirs = [self.output_dir]
 
     def __getstate__(self):
         d = dict(self.__dict__)
