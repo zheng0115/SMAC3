@@ -22,7 +22,7 @@ InstSeedKey = collections.namedtuple(
     'InstSeedKey', ['instance', 'seed'])
 
 RunValue = collections.namedtuple(
-    'RunValue', ['cost', 'time', 'status', 'additional_info'])
+    'RunValue', ['cost', 'time', 'status', 'wc_stamp', 'additional_info'])
 
 
 class EnumEncoder(json.JSONEncoder):
@@ -75,6 +75,7 @@ class RunHistory(object):
     def add(self, config, cost, time,
             status, instance_id=None,
             seed=None,
+            wc_time_stamp=None,
             additional_info=None,
             external_data: bool=False):
         '''
@@ -96,6 +97,9 @@ class RunHistory(object):
                 str representing an instance (default: None)
             seed: int
                 random seed used by TA (default: None)
+            wc_time_stamp: float
+                used wallclock time so far,
+                to recreate order of runhistory after dumped to disk
             additional_info: dict
                 additional run infos (could include further returned
                 information from TA or fields such as start time and host_id)
@@ -114,7 +118,7 @@ class RunHistory(object):
             self.ids_config[self._n_id] = config
 
         k = RunKey(config_id, instance_id, seed)
-        v = RunValue(cost, time, status, additional_info)
+        v = RunValue(cost, time, status, wc_time_stamp, additional_info)
 
         # Each runkey is supposed to be used only once. Repeated tries to add
         # the same runkey will be ignored silently if not capped.
@@ -300,7 +304,8 @@ class RunHistory(object):
                      status=StatusType(v[2]),
                      instance_id=k[1],
                      seed=int(k[2]),
-                     additional_info=v[3])
+                     wc_time_stamp=float(v[3]),
+                     additional_info=v[4])
 
     def update_from_json(self, fn, cs):
         """Update the current runhistory by adding new runs from a json file.

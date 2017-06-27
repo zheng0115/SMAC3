@@ -213,6 +213,7 @@ class ExecuteTARun(object):
             self.runhistory.add(config=config,
                                 cost=cost, time=runtime, status=status,
                                 instance_id=instance, seed=seed,
+                                wc_time_stamp=self.stats.get_used_wallclock_time(),
                                 additional_info=additional_info)
 
         if status == StatusType.CAPPED:
