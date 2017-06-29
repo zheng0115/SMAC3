@@ -51,6 +51,9 @@ class CMDReader(object):
         req_opts.add_argument("--mode", default="SMAC",
                               choices=["SMAC", "ROAR"],
                               help="Configuration mode.")
+        req_opts.add_argument("--parallel", default=1,
+                              type=int,
+                              help="Number of parallel SMAC runs")
         req_opts.add_argument("--warmstart_runhistory", default=None,
                               nargs="*",
                               help=SUPPRESS)  # list of runhistory dump files

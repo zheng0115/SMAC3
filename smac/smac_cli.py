@@ -1,6 +1,9 @@
 import os
 import sys
 import logging
+import typing
+from joblib import Parallel, delayed
+
 import numpy as np
 
 from smac.utils.io.cmd_reader import CMDReader
@@ -12,6 +15,7 @@ from smac.optimizer.objective import average_cost
 from smac.utils.merge_foreign_data import merge_foreign_data_from_file
 from smac.utils.io.traj_logging import TrajLogger
 from smac.tae.execute_ta_run import TAEAbortException, FirstRunCrashedException
+from smac.configspace import Configuration
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -19,6 +23,27 @@ __license__ = "3-clause BSD"
 __maintainer__ = "Marius Lindauer"
 __email__ = "lindauer@cs.uni-freiburg.de"
 __version__ = "0.0.1"
+
+
+def start(scens:Scenario, mode:str, rh:RunHistory, initial_configs:typing.List[Configuration], seed:int):
+
+    if mode == "SMAC":
+        optimizer = SMAC(
+            scenario=scens[seed],
+            rng=np.random.RandomState(seed),
+            runhistory=rh,
+            initial_configurations=initial_configs)
+    elif mode == "ROAR":
+        optimizer = ROAR(
+            scenario=scens[seed],
+            rng=np.random.RandomState(seed),
+            runhistory=rh,
+            initial_configurations=initial_configs)
+    try:
+        optimizer.optimize()
+        
+    except (TAEAbortException, FirstRunCrashedException) as err:
+        self.logger.error(err)
 
 
 class SMACCLI(object):
@@ -58,9 +83,14 @@ class SMACCLI(object):
         root_logger.addHandler(logger_handler)
         # remove default handler
         root_logger.removeHandler(root_logger.handlers[0])
+        
+        if args_.parallel > 1:
+            misc_args = {"shared_model": True}
 
-        scen = Scenario(args_.scenario_file, misc_args,
-                        run_id=args_.seed)
+        scens = [Scenario(args_.scenario_file, misc_args,
+                        run_id=seed)
+                 for seed in range(args_.seed, args_.seed+args_.parallel)]
+        scen = scens[0]
 
         rh = None
         if args_.warmstart_runhistory:
@@ -82,20 +112,9 @@ class SMACCLI(object):
                 trajectory = TrajLogger.read_traj_aclib_format(
                     fn=traj_fn, cs=scen.cs)
                 initial_configs.append(trajectory[-1]["incumbent"])
-
-        if args_.mode == "SMAC":
-            optimizer = SMAC(
-                scenario=scen,
-                rng=np.random.RandomState(args_.seed),
-                runhistory=rh,
-                initial_configurations=initial_configs)
-        elif args_.mode == "ROAR":
-            optimizer = ROAR(
-                scenario=scen,
-                rng=np.random.RandomState(args_.seed),
-                runhistory=rh,
-                initial_configurations=initial_configs)
-        try:
-            optimizer.optimize()
-        except (TAEAbortException, FirstRunCrashedException) as err:
-            self.logger.error(err)
+                
+                
+        Parallel(n_jobs=args_.parallel, backend="multiprocessing")\
+                (delayed(start)\
+                (scens=scens, mode=args_.mode, rh=rh, initial_configs=initial_configs, seed=seed) 
+                  for seed in range(args_.parallel))
