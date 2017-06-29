@@ -339,9 +339,10 @@ class RunHistory(object):
         #  the ID
         for key, value in runhistory.data.items():
             config_id, instance_id, seed = key
-            cost, time, status, additional_info = value
+            cost, time, status, time_stamp, additional_info = value
             config = runhistory.ids_config[config_id]
             self.add(config=config, cost=cost, time=time,
                      status=status, instance_id=instance_id,
-                     seed=seed, additional_info=additional_info,
+                     seed=seed, wc_time_stamp=time_stamp, 
+                     additional_info=additional_info,
                      external_data=external_data)
