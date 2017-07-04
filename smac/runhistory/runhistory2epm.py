@@ -136,7 +136,7 @@ class AbstractRunHistory2EPM(object):
         '''
         raise NotImplementedError()
 
-    def transform(self, runhistory):
+    def transform(self, runhistory, max_time_stamp:float=np.inf):
         '''
         returns vector representation of runhistory;
         if imputation is disabled, censored (TIMEOUT with time < cutoff) will be skipped
@@ -145,6 +145,8 @@ class AbstractRunHistory2EPM(object):
         ----------
         runhistory : smac.runhistory.runhistory.RunHistory
             runhistory of all evaluated configurations x instances
+        max_time_stamp: float
+            maximal wallclock time stamp of observation to be considered
 
         Returns
         -------
@@ -159,7 +161,8 @@ class AbstractRunHistory2EPM(object):
 
         # consider only successfully finished runs
         s_run_dict = {run: runhistory.data[run] for run in runhistory.data.keys()
-                      if runhistory.data[run].status in self.success_states}
+                      if runhistory.data[run].status in self.success_states
+                      and runhistory.data[run].wc_stamp <= max_time_stamp}
 
         # Store a list of instance IDs
         s_instance_id_list = [k.instance_id for k in s_run_dict.keys()]
@@ -169,7 +172,8 @@ class AbstractRunHistory2EPM(object):
         # Also get TIMEOUT runs
         t_run_dict = {run: runhistory.data[run] for run in runhistory.data.keys()
                       if runhistory.data[run].status == StatusType.TIMEOUT and
-                      runhistory.data[run].time >= self.cutoff_time}
+                      runhistory.data[run].time >= self.cutoff_time and
+                      runhistory.data[run].wc_stamp <= max_time_stamp}
         t_instance_id_list = [k.instance_id for k in s_run_dict.keys()]
 
         # use penalization (e.g. PAR10) for EPM training
@@ -185,7 +189,8 @@ class AbstractRunHistory2EPM(object):
             # Get all censored runs
             c_run_dict = {run: runhistory.data[run] for run in runhistory.data.keys()
                           if runhistory.data[run].status in self.impute_state and
-                          runhistory.data[run].time < self.cutoff_time}
+                          runhistory.data[run].time < self.cutoff_time and
+                          runhistory.data[run].wc_stamp <= max_time_stamp}
             if len(c_run_dict) == 0:
                 self.logger.debug("No censored data found, skip imputation")
                 # If we do not impute, we also return TIMEOUT data
