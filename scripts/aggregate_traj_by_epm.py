@@ -1,6 +1,7 @@
 import os
 import typing
 import glob
+import json
 import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("PlotTraj")
@@ -58,7 +59,10 @@ def setup_SMAC_from_file(smac_out_dns: str):
     rh.load_json(os.path.join(smac_out_dns[0], "runhistory.json"), cs=scenario.cs)
     
     for dn in smac_out_dns[1:]:
-        rh.update_from_json(fn=os.path.join(dn, "runhistory.json"), cs=scenario.cs)
+        try:
+            rh.update_from_json(fn=os.path.join(dn, "runhistory.json"), cs=scenario.cs)
+        except json.decoder.JSONDecodeError:
+            print("Failed to read %s" %(os.path.join(dn, "runhistory.json")))
 
     trajs = []
     for dn in smac_out_dns:
