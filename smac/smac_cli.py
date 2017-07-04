@@ -25,16 +25,57 @@ __email__ = "lindauer@cs.uni-freiburg.de"
 __version__ = "0.0.1"
 
 
-def start(scens:Scenario, mode:str, rh:RunHistory, initial_configs:typing.List[Configuration], seed:int):
+def start(scens:typing.List[Scenario], 
+          mode:str, 
+          rh:RunHistory, 
+          initial_configs:typing.List[Configuration], 
+          seed:int,
+          diversify:bool=False, 
+          rr_portfolio:bool=False):
+    '''
+        decoupled method to be used in joblib
+        
+        Arguments
+        ---------
+        scens: typing.List[Scenario]
+            list of scenario objects -- scens[seed] is used
+        mode: str
+            AC mode -- will be overwritten if rr_portfolio is set to True
+        rh: RunHistory
+            runhistory object
+        initial_configs: typing.List[Configuration]
+            list of initial configurations
+        seed: int
+            random seed -- special semantic of seed==1 -> only run starting from Default if diversify==True
+        diversify: bool
+            if set to True, all but seed==1 will start with a random configuration as initial inc
+        rr_portfolio: bool
+            if set to True, use a round robin portfolio of different AC modes
+    '''
 
-    if mode == "SMAC":
+    portfolio_seq = ["SMAC", "ROAR", "EPILS"]
+
+    if (not rr_portfolio and seed > 0 and diversify) or\
+       (rr_portfolio and seed > len(portfolio_seq) and  diversify):
+        scens[seed].initial_incumbent = "RANDOM"
+       
+    if (not rr_portfolio and mode == "SMAC") or (rr_portfolio and portfolio_seq[seed % 3] == "SMAC"):
+        print("SMAC")
         optimizer = SMAC(
             scenario=scens[seed],
             rng=np.random.RandomState(seed),
             runhistory=rh,
             initial_configurations=initial_configs)
-    elif mode == "ROAR":
+    elif (not rr_portfolio and mode == "ROAR") or (rr_portfolio and portfolio_seq[seed % 3] == "ROAR"):
+        print("ROAR")
         optimizer = ROAR(
+            scenario=scens[seed],
+            rng=np.random.RandomState(seed),
+            runhistory=rh,
+            initial_configurations=initial_configs)
+    elif (not rr_portfolio and mode == "EPILS") or (rr_portfolio and portfolio_seq[seed % 3] == "EPILS"):
+        print("EPILS")
+        optimizer = EPILS(
             scenario=scens[seed],
             rng=np.random.RandomState(seed),
             runhistory=rh,
@@ -116,5 +157,6 @@ class SMACCLI(object):
                 
         Parallel(n_jobs=args_.parallel, backend="multiprocessing")\
                 (delayed(start)\
-                (scens=scens, mode=args_.mode, rh=rh, initial_configs=initial_configs, seed=seed) 
+                (scens=scens, mode=args_.mode, rh=rh, initial_configs=initial_configs, seed=seed,
+                 diversify=args_.diversify, rr_portfolio=args_.rr_portfolio) 
                   for seed in range(args_.parallel))

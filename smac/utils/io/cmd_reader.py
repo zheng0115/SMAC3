@@ -51,9 +51,18 @@ class CMDReader(object):
         req_opts.add_argument("--mode", default="SMAC",
                               choices=["SMAC", "ROAR"],
                               help="Configuration mode.")
-        req_opts.add_argument("--parallel", default=1,
+        
+        psmac_opts = parser.add_argument_group("pSMAC Options")
+        psmac_opts.add_argument("--parallel", default=1,
                               type=int,
                               help="Number of parallel SMAC runs")
+        psmac_opts.add_argument("--diversify", default=False,
+                                action="store_true",
+                                help="Diversify runs by using random configurations as initial incumbents")
+        psmac_opts.add_argument("--rr_portfolio", default=False,
+                                action="store_true",
+                                help="Use a round robin portfolio of AC mode (e.g., SMAC, ROAR, EPILS)")
+        
         req_opts.add_argument("--warmstart_runhistory", default=None,
                               nargs="*",
                               help=SUPPRESS)  # list of runhistory dump files
