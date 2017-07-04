@@ -20,7 +20,7 @@ from smac.initial_design.random_configuration_design import RandomConfiguration
 from smac.initial_design.multi_config_initial_design import \
     MultiConfigInitialDesign
 from smac.intensification.intensification import Intensifier
-from smac.optimizer.smbo import SMBO
+from smac.optimizer.epils import EPILS_Solver
 from smac.optimizer.objective import average_cost
 from smac.optimizer.acquisition import EI, LogEI, AbstractAcquisitionFunction
 from smac.optimizer.local_search import LocalSearch
@@ -38,7 +38,7 @@ __copyright__ = "Copyright 2016, ML4AAD"
 __license__ = "3-clause BSD"
 
 
-class SMAC(object):
+class EPILS(object):
 
     def __init__(self,
                  scenario: Scenario,
@@ -291,18 +291,18 @@ class SMAC(object):
         if runhistory2epm.scenario is None:
             runhistory2epm.scenario = scenario
 
-        self.solver = SMBO(scenario=scenario,
-                           stats=self.stats,
-                           initial_design=initial_design,
-                           runhistory=runhistory,
-                           runhistory2epm=runhistory2epm,
-                           intensifier=intensifier,
-                           aggregate_func=aggregate_func,
-                           num_run=num_run,
-                           model=model,
-                           acq_optimizer=local_search,
-                           acquisition_func=acquisition_function,
-                           rng=rng)
+        self.solver = EPILS_Solver(scenario=scenario,
+                                   stats=self.stats,
+                                   initial_design=initial_design,
+                                   runhistory=runhistory,
+                                   runhistory2epm=runhistory2epm,
+                                   intensifier=intensifier,
+                                   aggregate_func=aggregate_func,
+                                   num_run=num_run,
+                                   model=model,
+                                   acq_optimizer=local_search,
+                                   acquisition_func=acquisition_function,
+                                   rng=rng)
 
     def _get_rng(self, rng):
         '''
@@ -340,11 +340,6 @@ class SMAC(object):
             ---------
             max_iters: int
                 maximal number of iterations
-
-            Returns
-            -------
-            incumbent: Configuration
-                optimized parameters
         '''
         incumbent = None
         try:
@@ -363,24 +358,24 @@ class SMAC(object):
 
     def get_tae_runner(self):
         '''
-            Returns target algorithm evaluator (TAE) object
+            returns target algorithm evaluator (TAE) object
             which can run the target algorithm given a
             configuration
 
             Returns
             -------
-            TAE: smac.tae.execute_ta_run.ExecuteTARun
+            smac.tae.execute_ta_run.ExecuteTARun
         '''
         return self.solver.intensifier.tae_runner
 
     def get_runhistory(self):
         '''
-            Returns the runhistory
-            (i.e., all evaluated configurations and the results).
+            returns the runhistory 
+            (i.e., all evaluated configurations and the results)
 
             Returns
             -------
-            Runhistory: smac.runhistory.runhistory.RunHistory
+            smac.runhistory.runhistory.RunHistory
         '''
         if not hasattr(self, 'runhistory'):
             raise ValueError('SMAC was not fitted yet. Call optimize() prior '
@@ -389,14 +384,14 @@ class SMAC(object):
 
     def get_trajectory(self):
         '''
-            Returns the trajectory
-            (i.e., all incumbent configurations over time).
+            returns the trajectory 
+            (i.e., all incumbent configurations over time)
 
             Returns
             -------
-            Trajectory: NamedTuple (util.io.traj_logging.TrajEntry)
-                ['train_perf', 'incumbent_id', 'incumbent',
-                'ta_runs', 'ta_time_used', 'wallclock_time']
+            List of entries with the following fields: 
+            'train_perf', 'incumbent_id', 'incumbent',
+            'ta_runs', 'ta_time_used', 'wallclock_time'
         '''
 
         if not hasattr(self, 'trajectory'):
@@ -406,17 +401,16 @@ class SMAC(object):
 
     def get_X_y(self):
         '''
-            Simple interface to obtain all data in runhistory
-            in X, y format.
-
-            Uses
-            smac.runhistory.runhistory2epm.AbstractRunHistory2EPM.get_X_y().
+            simple interface to obtain all data in runhistory
+            in X, y format 
+            
+            Uses smac.runhistory.runhistory2epm.AbstractRunHistory2EPM.get_X_y()
 
             Returns
-            -------
+            ------- 
             X: numpy.ndarray
                 matrix of all configurations (+ instance features)
-            y: numpy.ndarray
+            y numpy.ndarray
                 vector of cost values; can include censored runs
             cen: numpy.ndarray
                 vector of bools indicating whether the y-value is censored

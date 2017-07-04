@@ -10,6 +10,7 @@ from smac.utils.io.cmd_reader import CMDReader
 from smac.scenario.scenario import Scenario
 from smac.facade.smac_facade import SMAC
 from smac.facade.roar_facade import ROAR
+from smac.facade.epils_facade import EPILS
 from smac.runhistory.runhistory import RunHistory
 from smac.optimizer.objective import average_cost
 from smac.utils.merge_foreign_data import merge_foreign_data_from_file
@@ -56,25 +57,26 @@ def start(scens:typing.List[Scenario],
     portfolio_seq = ["SMAC", "ROAR", "EPILS"]
 
     if (not rr_portfolio and seed > 0 and diversify) or\
-       (rr_portfolio and seed > len(portfolio_seq) and  diversify):
+       (rr_portfolio and seed > len(portfolio_seq)-1 and  diversify):
+        print("Diversify [%d]" %(seed))
         scens[seed].initial_incumbent = "RANDOM"
        
     if (not rr_portfolio and mode == "SMAC") or (rr_portfolio and portfolio_seq[seed % 3] == "SMAC"):
-        print("SMAC")
+        print("SMAC[%d]" %(seed))
         optimizer = SMAC(
             scenario=scens[seed],
             rng=np.random.RandomState(seed),
             runhistory=rh,
             initial_configurations=initial_configs)
     elif (not rr_portfolio and mode == "ROAR") or (rr_portfolio and portfolio_seq[seed % 3] == "ROAR"):
-        print("ROAR")
+        print("ROAR[%d]" %(seed))
         optimizer = ROAR(
             scenario=scens[seed],
             rng=np.random.RandomState(seed),
             runhistory=rh,
             initial_configurations=initial_configs)
     elif (not rr_portfolio and mode == "EPILS") or (rr_portfolio and portfolio_seq[seed % 3] == "EPILS"):
-        print("EPILS")
+        print("EPILS[%d]" %(seed))
         optimizer = EPILS(
             scenario=scens[seed],
             rng=np.random.RandomState(seed),
@@ -153,7 +155,6 @@ class SMACCLI(object):
                 trajectory = TrajLogger.read_traj_aclib_format(
                     fn=traj_fn, cs=scen.cs)
                 initial_configs.append(trajectory[-1]["incumbent"])
-                
                 
         Parallel(n_jobs=args_.parallel, backend="multiprocessing")\
                 (delayed(start)\

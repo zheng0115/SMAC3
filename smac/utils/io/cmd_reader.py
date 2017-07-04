@@ -49,7 +49,7 @@ class CMDReader(object):
                               choices=["INFO", "DEBUG"],
                               help="verbose level")
         req_opts.add_argument("--mode", default="SMAC",
-                              choices=["SMAC", "ROAR"],
+                              choices=["SMAC", "ROAR", "EPILS"],
                               help="Configuration mode.")
         
         psmac_opts = parser.add_argument_group("pSMAC Options")
