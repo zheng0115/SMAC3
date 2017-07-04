@@ -17,6 +17,7 @@ if cmd_folder not in sys.path:
 ########################################
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -59,10 +60,6 @@ def setup_SMAC_from_file(smac_out_dns: str):
     for dn in smac_out_dns[1:]:
         rh.update_from_json(fn=os.path.join(dn, "runhistory.json"), cs=scenario.cs)
 
-    logger.info("Fit EPM on %d observations." % (len(rh.data)))
-    X, Y = smac.solver.rh2EPM.transform(rh)
-    smac.solver.model.train(X, Y)
-
     trajs = []
     for dn in smac_out_dns:
         traj = TrajLogger.read_traj_aclib_format(fn=os.path.join(dn, "traj_aclib2.json"),
@@ -74,10 +71,9 @@ def setup_SMAC_from_file(smac_out_dns: str):
 
 def predict_perf_of_traj(trajs, smac: SMAC):
     '''
-        predict the performance of all entries in the trajectory
-        marginalized across all instances
-        
-        Overwrites all cost estimates in the traj entries
+        iterates over all trajectories simultaneously 
+        and predicts the performance of all current incumbents
+        and chooses the best of them
 
         Arguments
         ---------
@@ -88,60 +84,54 @@ def predict_perf_of_traj(trajs, smac: SMAC):
 
     '''
 
-    for traj in trajs:
-        logger.info("Predict performance of %d entries in trajectory." %
-                    (len(traj)))
-        for entry in traj:
-            config = entry["incumbent"]
-            wc_time = entry["wallclock_time"]
-            config_array = convert_configurations_to_array([config])
-            m, v = smac.solver.model.predict_marginalized_over_instances(
-                X=config_array)
+    wc_time = 0
+    # skip dummy entries
+    incs = [traj[1] for traj in trajs]
+    idxs = np.array([1]*len(trajs))
     
-            if smac.solver.scenario.run_obj == "runtime":
-                p = 10**m[0, 0]
-            else:
-                p = m[0, 0]
-                
-            entry["cost"] = p
-            
-def aggregate_trajs(trajs:typing.List):
-    '''
-        at each point in time,
-        the current best inc is used 
-        given the cost value estimates
+    final_traj = []
+    
+    while True:
+        wc_time = max(inc["wallclock_time"] for inc in incs)
+        print(wc_time)
+        X, Y = smac.solver.rh2EPM.transform(smac.solver.runhistory, wc_time)
+        logger.info("Fit EPM on %d observations." % (X.shape[0]))
+        smac.solver.model.train(X, Y)
         
-        Arguments
-        ---------
-        trajs:typing.List
-            list of trajectory
+        config_array = convert_configurations_to_array([inc["incumbent"] for inc in incs])
+        m, v = smac.solver.model.predict_marginalized_over_instances(
+                X=config_array)
+        
+        if smac.solver.scenario.run_obj == "runtime":
+            p = 10**m[:, 0]
+        else:
+            p = m[:, 0]
+
+        best_idx = np.argmin(p)
+        incs[best_idx]["cost"] = p[best_idx]
+        final_traj.append(incs[best_idx])
+        print(p[best_idx])
+        print(incs[best_idx]["incumbent"])
+        
+        min_wc_time = np.inf
+        min_idx = None
+        for traj_idx, idx in enumerate(idxs):
+            try:
+                wc = trajs[traj_idx][idx+1]["wallclock_time"]
+                if wc < min_wc_time:
+                    min_idx = traj_idx
+                    min_wc_time = wc
+            except IndexError:
+                pass
             
-        Returns
-        -------
-        new_traj:
-            aggregated trajectory
-    '''
-    
-    # put all entries in one list
-    traj_list = []
-    for traj in trajs:
-        traj_list.extend(traj)
-    
-    # sort them by wc time stamp
-    traj_list = sorted(traj_list, key=lambda x: x["wallclock_time"])
-    
-    # store first inc
-    inc_entry = traj_list[0]
-    # new traj
-    new_traj = [inc_entry]
-    
-    for entry in traj_list:
-        if entry["cost"] < inc_entry["cost"]:
-            new_traj.append(entry)
-            inc_entry = entry
+        if min_idx is not None:
+            idxs[min_idx] += 1
+            incs[min_idx] = trajs[min_idx][idxs[min_idx]]
+        else:
+            break
             
-    return new_traj
-            
+    return final_traj
+        
 def save_traj(traj, save_dn:str):
     '''
         save trajectory to disk
@@ -186,8 +176,6 @@ if __name__ == "__main__":
 
     smac, trajs = setup_SMAC_from_file(smac_out_dns=out_dirs)
 
-    predict_perf_of_traj(trajs=trajs, smac=smac)
-    
-    aggr_traj = aggregate_trajs(trajs=trajs)
+    aggr_traj = predict_perf_of_traj(trajs=trajs, smac=smac)
     
     save_traj(traj=aggr_traj, save_dn=args_.save_dir)
