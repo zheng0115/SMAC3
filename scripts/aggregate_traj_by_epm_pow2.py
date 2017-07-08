@@ -107,9 +107,11 @@ def predict_perf_of_traj(trajs, smac: SMAC):
                     break
                 else:
                     last_entry = entry
-            if traj[-1]["incumbent"] == last_entry["incumbent"]:
+            if traj[-1]["wallclock_time"] == last_entry["wallclock_time"]:
                 last.append(True)
                 incs.append(traj[-1])
+            else:
+                last.append(False)
         
         X, Y = smac.solver.rh2EPM.transform(smac.solver.runhistory, wc_time)
         logger.info("Fit EPM on %d observations." % (X.shape[0]))
