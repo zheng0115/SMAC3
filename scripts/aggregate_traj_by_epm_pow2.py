@@ -112,6 +112,7 @@ def predict_perf_of_traj(trajs, smac: SMAC):
         X, Y = smac.solver.rh2EPM.transform(smac.solver.runhistory, wc_time)
         logger.info("Fit EPM on %d observations." % (X.shape[0]))
         if X.shape[0] == 0:
+            wc_time *= 2
             continue
         smac.solver.model.train(X, Y)
         
