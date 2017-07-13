@@ -37,7 +37,7 @@ __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2017, ML4AAD"
 __license__ = "3-clause BSD"
 
-def read_val_data(val_data_dn:str):
+def read_val_data(val_data_dn:str, cs):
     '''
         read (training) validation data from val_data_dn 
     
@@ -45,6 +45,7 @@ def read_val_data(val_data_dn:str):
         ---------
         val_data_dn: str
             directory name/path of with validation data (training)
+        cs: ConfigurationSpace
             
         Returns
         -------
@@ -59,9 +60,11 @@ def read_val_data(val_data_dn:str):
     with open(os.path.join(val_data_dn, "configs.json")) as fp:
         config_dict = json.load(fp)
     
-    with open(os.path.join(val_data_dn, "pcs.txt")) as fp:
-        pcs_string = fp.readlines()
-        cs = read(pcs_string)
+    #===========================================================================
+    # with open(os.path.join(val_data_dn, "pcs.txt")) as fp:
+    #     pcs_string = fp.readlines()
+    #     cs = read(pcs_string)
+    #===========================================================================
     
     config_dict = {Configuration(configuration_space=cs, values=config): id_ for id_, config in config_dict.items()}
         
@@ -81,6 +84,7 @@ def setup_SMAC_from_file(smac_out_dns: str):
         -------
         trajs: typing.List
             list of trajectories
+        cs: ConfigurationSpace
     '''
 
     cwd = os.getcwd()
@@ -99,7 +103,7 @@ def setup_SMAC_from_file(smac_out_dns: str):
                                              cs=scenario.cs)
         trajs.append(traj)
 
-    return trajs
+    return trajs, scenario.cs
 
 
 def race_traj(trajs,
@@ -293,9 +297,9 @@ if __name__ == "__main__":
     for dn in args_.smac_output_dir:
         out_dirs.extend(glob.glob(dn))
 
-    trajs = setup_SMAC_from_file(smac_out_dns=out_dirs)
+    trajs, cs = setup_SMAC_from_file(smac_out_dns=out_dirs)
     
-    cost_data, config_dict = read_val_data(args_.val_data)
+    cost_data, config_dict = read_val_data(args_.val_data, cs)
 
     aggr_traj = race_traj(trajs=trajs,
                           cost_data=cost_data, config_dict=config_dict)
