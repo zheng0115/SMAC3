@@ -247,10 +247,8 @@ def perm_test(x, y, alpha:float=0.05, reps:int=10000):
     permutations = [np.sum((x-y) * np.random.choice([1,-1], size=x.shape[0])) for _ in range(reps)]
     p = percentileofscore(a=permutations, score=ground_truth) / 100
     
-    if p < alpha:
-        return True
-    else:
-        return False
+    #print(p)
+    return p < alpha
         
         
 def save_traj(traj, save_dn:str):
