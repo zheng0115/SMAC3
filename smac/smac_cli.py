@@ -1,4 +1,3 @@
-import os
 import sys
 import logging
 import typing
@@ -91,21 +90,15 @@ def start(scens:typing.List[Scenario],
 
 class SMACCLI(object):
 
-    '''
-    main class of SMAC
-    '''
+    """Main class of SMAC"""
 
     def __init__(self):
-        '''
-            constructor
-        '''
+        """Constructor"""
         self.logger = logging.getLogger(
             self.__module__ + "." + self.__class__.__name__)
 
     def main_cli(self):
-        '''
-            main function of SMAC for CLI interface
-        '''
+        """Main function of SMAC for CLI interface"""
         self.logger.info("SMAC call: %s" % (" ".join(sys.argv)))
 
         cmd_reader = CMDReader()
