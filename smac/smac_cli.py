@@ -15,6 +15,7 @@ from smac.optimizer.objective import average_cost
 from smac.utils.merge_foreign_data import merge_foreign_data_from_file
 from smac.utils.io.traj_logging import TrajLogger
 from smac.tae.execute_ta_run import TAEAbortException, FirstRunCrashedException
+from smac.optimizer.acquisition import EI, LogEI
 from smac.configspace import Configuration
 
 __author__ = "Marius Lindauer"
@@ -25,62 +26,76 @@ __email__ = "lindauer@cs.uni-freiburg.de"
 __version__ = "0.0.1"
 
 
-def start(scens:typing.List[Scenario], 
+def start(scenario:Scenario, 
           mode:str, 
           rh:RunHistory, 
           initial_configs:typing.List[Configuration], 
+          run_id:int,
           seed:int,
           diversify:bool=False, 
-          rr_portfolio:bool=False):
+          rr_portfolio:bool=False,
+          acq_portfolio:bool=False,):
     '''
         decoupled method to be used in joblib
         
         Arguments
         ---------
-        scens: typing.List[Scenario]
-            list of scenario objects -- scens[seed] is used
+        scenario: Scenario
+            scenario objects
         mode: str
             AC mode -- will be overwritten if rr_portfolio is set to True
         rh: RunHistory
             runhistory object
         initial_configs: typing.List[Configuration]
             list of initial configurations
+        run_id:
+            run ID (from 0 to n-1 parallel runs)
         seed: int
             random seed -- special semantic of seed==1 -> only run starting from Default if diversify==True
         diversify: bool
             if set to True, all but seed==1 will start with a random configuration as initial inc
         rr_portfolio: bool
             if set to True, use a round robin portfolio of different AC modes
+        acq_portfolio: bool
+            increases exploration of acquistion function depending on seed
     '''
 
-    portfolio_seq = ["SMAC", "ROAR", "EPILS"]
-
-    if (not rr_portfolio and seed > 0 and diversify) or\
-       (rr_portfolio and seed > len(portfolio_seq)-1 and  diversify):
-        print("Diversify [%d]" %(seed))
-        scens[seed].initial_incumbent = "RANDOM"
+    portfolio_seq = ["SMAC", "EPILS"]
+    
+    if (not rr_portfolio and run_id > 0 and diversify) or\
+       (rr_portfolio and run_id > len(portfolio_seq)-1 and  diversify):
+        print("Diversify [%d]" %(run_id))
+        scenario.initial_incumbent = "RANDOM"
        
-    if (not rr_portfolio and mode == "SMAC") or (rr_portfolio and portfolio_seq[seed % 3] == "SMAC"):
-        print("SMAC[%d]" %(seed))
+    if acq_portfolio:
+        ei_par = 0 if run_id == 0 else \
+                 2**(run_id - 2) # 0, 0.5, 1, 2, 3, 4, 8, ...
+    else:
+        ei_par = 0
+    
+    print("EI PAR [%d]: %f" %(run_id, ei_par))
+       
+    if scenario.run_obj == "runtime":
+        acquisition_function = LogEI(par=ei_par)
+    else:
+        acquisition_function = EI(par=ei_par)
+   
+    if (not rr_portfolio and mode == "SMAC") or (rr_portfolio and portfolio_seq[run_id % 2] == "SMAC"):
+        print("SMAC[%d]" %(run_id))
         optimizer = SMAC(
-            scenario=scens[seed],
-            rng=np.random.RandomState(seed),
+            scenario=scenario,
+            rng=np.random.RandomState(seed+run_id),
             runhistory=rh,
-            initial_configurations=initial_configs)
-    elif (not rr_portfolio and mode == "ROAR") or (rr_portfolio and portfolio_seq[seed % 3] == "ROAR"):
-        print("ROAR[%d]" %(seed))
-        optimizer = ROAR(
-            scenario=scens[seed],
-            rng=np.random.RandomState(seed),
-            runhistory=rh,
-            initial_configurations=initial_configs)
-    elif (not rr_portfolio and mode == "EPILS") or (rr_portfolio and portfolio_seq[seed % 3] == "EPILS"):
-        print("EPILS[%d]" %(seed))
+            initial_configurations=initial_configs,
+            acquisition_function=acquisition_function)
+    elif (not rr_portfolio and mode == "EPILS") or (rr_portfolio and portfolio_seq[run_id % 2] == "EPILS"):
+        print("EPILS[%d]" %(run_id))
         optimizer = EPILS(
-            scenario=scens[seed],
-            rng=np.random.RandomState(seed),
+            scenario=scenario,
+            rng=np.random.RandomState(seed+run_id),
             runhistory=rh,
-            initial_configurations=initial_configs)
+            initial_configurations=initial_configs,
+            acquisition_function=acquisition_function)
     try:
         optimizer.optimize()
         
@@ -151,6 +166,8 @@ class SMACCLI(object):
                 
         Parallel(n_jobs=args_.parallel, backend="multiprocessing")\
                 (delayed(start)\
-                (scens=scens, mode=args_.mode, rh=rh, initial_configs=initial_configs, seed=seed,
-                 diversify=args_.diversify, rr_portfolio=args_.rr_portfolio) 
-                  for seed in range(args_.parallel))
+                (scenario=scens[run_id], mode=args_.mode, rh=rh, initial_configs=initial_configs, run_id=run_id,
+                 diversify=args_.diversify, rr_portfolio=args_.rr_portfolio,
+                 acq_portfolio=args_.acq_portfolio,
+                 seed=args_.seed) 
+                  for run_id in range(args_.parallel))

@@ -108,7 +108,7 @@ class EI(AbstractAcquisitionFunction):
     """
 
     def __init__(self,
-                 model: AbstractEPM,
+                 model: AbstractEPM=None,
                  par: float=0.0,
                  **kwargs):
         """Constructor
@@ -172,7 +172,7 @@ class EI(AbstractAcquisitionFunction):
 
 class EIPS(EI):
     def __init__(self,
-                 model: AbstractEPM,
+                 model: AbstractEPM=None,
                  par: float=0.0,
                  **kwargs):
         r"""Computes for a given x the expected improvement as
@@ -244,7 +244,7 @@ class EIPS(EI):
 class LogEI(AbstractAcquisitionFunction):
 
     def __init__(self,
-                 model: AbstractEPM,
+                 model: AbstractEPM=None,
                  par: float=0.0,
                  **kwargs):
         r"""Computes for a given x the logarithm expected improvement as
@@ -290,10 +290,12 @@ class LogEI(AbstractAcquisitionFunction):
         m, var_ = self.model.predict_marginalized_over_instances(X)
         std = np.sqrt(var_)
 
-        f_min = self.eta - self.par
+        f_min = max(2**-10, self.eta - self.par)
         v = (np.log(f_min) - m) / std
         log_ei = (f_min * norm.cdf(v)) - \
             (np.exp(0.5 * var_ + m) * norm.cdf(v - std))
+
+        print(log_ei)
 
         if np.any(std == 0.0):
             # if std is zero, we have observed x on all instances

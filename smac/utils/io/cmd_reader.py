@@ -55,7 +55,10 @@ class CMDReader(object):
                                 help="Diversify runs by using random configurations as initial incumbents")
         psmac_opts.add_argument("--rr_portfolio", default=False,
                                 action="store_true",
-                                help="Use a round robin portfolio of AC mode (e.g., SMAC, ROAR, EPILS)")
+                                help="Use a round robin portfolio of AC mode (e.g., SMAC, EPILS)")
+        psmac_opts.add_argument("--acq_portfolio", default=False,
+                                action="store_true",
+                                help="Increases exploration in an exponential schedule")
         
         req_opts.add_argument("--warmstart_runhistory", default=None,
                               nargs="*",
