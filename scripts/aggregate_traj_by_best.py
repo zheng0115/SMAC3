@@ -151,7 +151,11 @@ def race_traj(trajs,
         cost_data_incs = []
         incs_avail = []
         for inc in incs:
-            id_ = config_dict.get(inc["incumbent"])
+            for config_prime, id_prime in config_dict.items():
+                if config_prime == inc["incumbent"]:
+                     id_ = id_prime
+                     break
+
             if id_ is None:
                 print(inc["incumbent"])
                 #print(config_dict)
