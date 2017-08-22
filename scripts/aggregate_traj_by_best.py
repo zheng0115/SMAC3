@@ -124,7 +124,7 @@ def race_traj(trajs,
 
     # consider only incumbents at every 
     # 2**-1, 2**0, 2**1, ... time stamp
-    wc_time = 0.5
+    wc_time = 0.6591796875
 
     final_traj = []
     
