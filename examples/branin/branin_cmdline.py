@@ -22,9 +22,6 @@ if __name__ == '__main__':
     y = float(sys.argv[9])
     crash = float(sys.argv[11])
     tmp = branin((x, y))
-    if crash == 0:
-        print('Result for SMAC: SUCCESS, -1, -1, %f, %s' % (tmp, seed))
-        create_crash = True
-    else:
-        print('Result for SMAC: CRASHED, -1, -1, %f, %s' % (tmp, seed))
-        create_crash = False
+  
+    print('Result for SMAC: SUCCESS, -1, -1, %f, %s' % (tmp, seed))
+ 

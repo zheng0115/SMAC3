@@ -12,6 +12,8 @@ from smac.optimizer.objective import average_cost
 from smac.utils.merge_foreign_data import merge_foreign_data_from_file
 from smac.utils.io.traj_logging import TrajLogger
 from smac.tae.execute_ta_run import TAEAbortException, FirstRunCrashedException
+import os
+from smac.configspace.merge_config_spaces import merge_configurations_of_local_optimizations
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -70,6 +72,7 @@ class SMACCLI(object):
                 cs=scen.cs,
                 aggregate_func=aggregate_func)
 
+
         initial_configs = None
         if args_.warmstart_incumbent:
             initial_configs = [scen.cs.get_default_configuration()]
@@ -77,9 +80,11 @@ class SMACCLI(object):
                 trajectory = TrajLogger.read_traj_aclib_format(
                     fn=traj_fn, cs=scen.cs)
                 initial_configs.append(trajectory[-1]["incumbent"])
-        
+                
+        if args_.warmstart_from_local_optimizations:
+            initial_configs = merge_configurations_of_local_optimizations(scen)
+            
         support_constraints = False
-        
         if args_.support_constraints:
             self.logger.debug("SMAC supports constraints.")
             support_constraints = True

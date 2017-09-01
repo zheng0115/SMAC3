@@ -55,7 +55,10 @@ class CMDReader(object):
                               help=SUPPRESS)  
         req_opts.add_argument("--warmstart_incumbent", default=None,
                               nargs="*",
-                              help=SUPPRESS)# list of trajectory dump files, 
+                              help=SUPPRESS)
+        req_opts.add_argument("--warmstart_from_local_optimizations", dest="warmstart_from_local_optimizations", 
+                              action='store_true',help=SUPPRESS) 
+        # list of trajectory dump files, 
                                             # reads runhistory 
                                             # and uses final incumbent as challenger 
         req_opts.add_argument("--support_constraints", dest="support_constraints", action='store_true',

@@ -35,14 +35,15 @@ def read(run_history: RunHistory,
 
     logger : logging.Logger
     """
+   
     numruns_in_runhistory = len(run_history.data)
     initial_numruns_in_runhistory = numruns_in_runhistory
 
     if isinstance(output_dirs, str):
         output_dirs = glob.glob(output_dirs)
-
     for output_directory in output_dirs:
         for file_in_output_directory in os.listdir(output_directory):
+            
             match = re.match(RUNHISTORY_RE, file_in_output_directory)
             if match:
                 runhistory_file = os.path.join(output_directory,

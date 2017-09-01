@@ -199,13 +199,13 @@ class EI_WITH_CONSTRAINTS(EI):
         #ei_values = self.ei._compute(X=X, **kwargs)
     
         #ei_values_constraints = self.ei_constraints._compute(X=X, **kwargs)
-        print("ei_values: " , ei_values)
         class_probabilities = self.constraint_model.predict_marginalized_over_instances(X)
         # since the StatusType.SUCCESS has the lowest value, namely 1, the success probability is always the first entry
         # in the class_probabilities array.
+       
+        #ei_values_with_crashes = class_probabilities[:,np.newaxis] * ei_values
         ei_values_with_crashes = class_probabilities[:,0][:,np.newaxis] * ei_values
-        print("class_probabilites: " , class_probabilities)
-
+        #print(class_probabilities)
         #return ei_values_with_crashes
         return ei_values_with_crashes
 

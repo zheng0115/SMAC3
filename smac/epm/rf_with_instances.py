@@ -27,6 +27,7 @@ class RandomForestClassifierWithInstances(AbstractEPM):
 #         
     def _predict(self, X: np.ndarray):
         return self.rf.predict_proba(X)
+        #return self.rf.predict(X)
     
     
     def predict_marginalized_over_instances(self, X: np.ndarray):

@@ -3,3 +3,5 @@ paramfile = branin_pcs.pcs
 run_obj = quality
 runcount_limit = 500
 deterministic = 1
+shared_model = True
+input_psmac_dirs = /home/mrudolph/SMAC3/examples/branin/test*_run1

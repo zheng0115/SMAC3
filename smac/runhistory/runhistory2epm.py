@@ -372,6 +372,7 @@ class RunHistory2EPM4Constraints(AbstractRunHistory2EPM):
                 y[row, 0] = StatusType.SUCCESS.value
             elif run.status == StatusType.CRASHED:
                 y[row, 0] = StatusType.CRASHED.value
+                #y[row, 0] = 0
 
 
         return X, y
