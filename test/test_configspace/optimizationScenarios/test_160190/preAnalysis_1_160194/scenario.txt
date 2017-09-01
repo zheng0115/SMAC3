@@ -1,0 +1,9 @@
+algo = python /home/mrudolph/gsim/python/smacInterface/src/scripts/simulate.py
+paramfile = optimizationScenarios/test_160190/preAnalysis_1_160194/parameters.pcs
+instance_file = optimizationScenarios/test_160190/preAnalysis_1_160194/instances.txt
+output_dir = optimizationScenarios/test_160190/preAnalysis_1_160194/output
+run_obj = quality
+runcount_limit = 3
+deterministic = true
+cost_for_crash = 800000.0
+abort_on_first_run_crash = false
