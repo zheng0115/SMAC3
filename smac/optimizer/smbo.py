@@ -169,7 +169,7 @@ class SMBO(object):
             # get all found configurations sorted according to acq
             challengers = self.choose_next(X=X, Y=Y, 
                                         X_constraints=X_constraints,
-                                        Y_constraints=Y_constraints)
+                                        Y_constraints=Y_constraints, num_configurations_by_random_search_sorted=0)
 
             time_spent = time.time() - start_time
             time_left = self._get_timebound_for_intensification(time_spent)

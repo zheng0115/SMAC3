@@ -6,14 +6,14 @@ Created on Sep 1, 2017
 
 
 import os
-from ConfigSpace import Configuration
+from ConfigSpace import Configuration, ConfigurationSpace
 from smac.scenario.scenario import Scenario
 import glob
 from smac.configspace import pcs_new
 from smac.utils.io.traj_logging import TrajLogger
 import random
 
-def merge_configurations_of_local_optimizations(global_scenario:Scenario):
+def merge_configurations_of_local_optimizations(global_scenario:Scenario, number_of_merged_configurations : int):
     regex_pcs_files = os.path.join(os.getcwd(), os.path.dirname(global_scenario.output_dir),
                                    "preAnalysis*/parameters.pcs") 
     pcs_files = glob.glob(regex_pcs_files)
@@ -35,11 +35,14 @@ def merge_configurations_of_local_optimizations(global_scenario:Scenario):
                     fn=traj_fn, cs=cspaces[index])
         for traj_entry in trajectory:
             incumbents[index].append(traj_entry["incumbent"])
-    
+        
+        if len(incumbents[index]) == 0:
+            incumbents[index].append(cspaces[index].get_default_configuration())
+        
+        
     merged_configs = []
     
-    number_of_merged_configs = 3
-    for i in range(0, number_of_merged_configs):
+    for i in range(0, number_of_merged_configurations):
         merged_config = {}
         for optimization_id in incumbents.keys():
             merged_config.update(random.choice(incumbents[optimization_id]).get_dictionary())
