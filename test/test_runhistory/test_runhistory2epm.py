@@ -70,7 +70,7 @@ class RunhistoryTest(unittest.TestCase):
         
         
         self.rh.add(config=self.config1, cost=800000.000000, time=10,
-                    status=StatusType.CRASHED, instance_id=23,
+                    status=StatusType.CONSTRAINT_VIOLATED, instance_id=23,
                     seed=None,
                     additional_info=None)
         
@@ -81,7 +81,7 @@ class RunhistoryTest(unittest.TestCase):
 
         # rh2epm should use cost and not time field later
         self.rh.add(config=self.config3, cost=200, time=20,
-                    status=StatusType.CRASHED, instance_id=1,
+                    status=StatusType.CONSTRAINT_VIOLATED, instance_id=1,
                     seed=45,
                     additional_info={"start_time": 20})
 
@@ -89,8 +89,8 @@ class RunhistoryTest(unittest.TestCase):
         self.assertTrue(
             np.allclose(X, np.array([[0.005, 0.995], [ 0.995, 0.005], [0.995, 0.995]]), atol=0.001))
         # log_10(20 * 10)
-        self.assertTrue(np.allclose(y, np.array([[StatusType.CRASHED.value], [StatusType.SUCCESS.value],
-                                                 [StatusType.CRASHED.value]]), atol=0.001))
+        self.assertTrue(np.allclose(y, np.array([[StatusType.CONSTRAINT_VIOLATED.value], [StatusType.SUCCESS.value],
+                                                 [StatusType.CONSTRAINT_VIOLATED.value]]), atol=0.001))
         
         
 

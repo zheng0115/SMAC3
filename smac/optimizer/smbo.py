@@ -163,6 +163,11 @@ class SMBO(object):
                 self.logger.debug("The runhistory2epm_constraints is not none")
                 X_constraints, Y_constraints =  self.runhistory2epm_constraints.transform(
                     self.runhistory)
+                # have not seen any constraint violation or success yet -> length of X_constraints and Y_constraints is                
+                # zero
+                if len(X_constraints) == 0 or len(Y_constraints) == 0:
+                    X_constraints = None
+                    Y_constraints = None
            
 
             self.logger.debug("Search for next configuration")

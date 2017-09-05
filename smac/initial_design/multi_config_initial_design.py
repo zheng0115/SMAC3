@@ -93,6 +93,8 @@ class MultiConfigInitialDesign(InitialDesign):
         self.traj_logger.add_entry(train_perf=2**31,
                                    incumbent_id=1,
                                    incumbent=configs[0])
+        
+        
 
         if len(set(configs)) > 1:
             # intensify will skip all challenger that are identical with the incumbent;

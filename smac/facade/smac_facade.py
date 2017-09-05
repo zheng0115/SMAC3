@@ -323,7 +323,7 @@ class SMAC(object):
                 runhistory2epm = RunHistory2EPM4Cost(scenario=scenario, num_params=num_params,
                                                      success_states=[
                                                          StatusType.SUCCESS, 
-                                                         StatusType.CRASHED],
+                                                         StatusType.CRASHED, StatusType.CONSTRAINT_VIOLATED],
                                                      impute_censored_data=False, impute_state=None)
                     
 

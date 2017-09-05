@@ -370,8 +370,8 @@ class RunHistory2EPM4Constraints(AbstractRunHistory2EPM):
     
             if run.status == StatusType.SUCCESS:
                 y[row, 0] = StatusType.SUCCESS.value
-            elif run.status == StatusType.CRASHED:
-                y[row, 0] = StatusType.CRASHED.value
+            elif run.status == StatusType.CONSTRAINT_VIOLATED:
+                y[row, 0] = StatusType.CONSTRAINT_VIOLATED.value
                 #y[row, 0] = 0
 
 
@@ -379,7 +379,7 @@ class RunHistory2EPM4Constraints(AbstractRunHistory2EPM):
     
     def __init__(self, *args, **kwargs):
         AbstractRunHistory2EPM.__init__(self, *args, **kwargs)
-        self.success_states = [StatusType.SUCCESS, StatusType.CRASHED]
+        self.success_states = [StatusType.SUCCESS, StatusType.CONSTRAINT_VIOLATED]
         
 
 
