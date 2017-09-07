@@ -309,7 +309,7 @@ class SMBO(object):
         next_configs_by_acq_value = [_[1] for _ in next_configs_by_acq_value]
 
         challengers = ChallengerList(next_configs_by_acq_value,
-                                     self.config_space)
+                                     self.config_space, acquisition_func=self.acquisition_func)
         return challengers
 
     def _get_next_by_random_search(self, num_points: int=1000,
@@ -400,9 +400,19 @@ class SMBO(object):
         # Last column is primary sort key!
         indices = np.lexsort((random.flatten(), acq_values.flatten()))
 
+        success_prob = self.acquisition_func.compute_success_probabilities(config_array)
+        acq_configs = []
+        for ind in indices[::-1]:
+            config = configs[ind]
+            config.set_predicted_success_probability(success_prob[ind][0])
+            acq_configs.append((acq_values[ind][0],config))
+            
+        return acq_configs
+        
         # Cannot use zip here because the indices array cannot index the
         # rand_configs list, because the second is a pure python list
-        return [(acq_values[ind][0], configs[ind]) for ind in indices[::-1]]
+        
+        #return [(acq_values[ind][0], configs[ind]) for ind in indices[::-1]]
 
     def _get_timebound_for_intensification(self, time_spent):
         """Calculate time left for intensify from the time spent on
@@ -449,11 +459,12 @@ class ChallengerList(object):
         ConfigurationSpace from which to sample new random configurations.
     """
 
-    def __init__(self, challengers, configuration_space):
+    def __init__(self, challengers, configuration_space, acquisition_func: AbstractAcquisitionFunction):
         self.challengers = challengers
         self.configuration_space = configuration_space
         self._index = 0
         self._next_is_random = False
+        self.acquisition_func = acquisition_func
 
     def __iter__(self):
         return self
@@ -465,6 +476,9 @@ class ChallengerList(object):
             self._next_is_random = False
             config = self.configuration_space.sample_configuration()
             config.origin = 'Random Search'
+            
+            success_prob = self.acquisition_func.compute_success_probabilities(convert_configurations_to_array([config]))
+            config.set_predicted_success_probability(success_prob)
             return config
         else:
             self._next_is_random = True

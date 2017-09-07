@@ -97,6 +97,7 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
     
+    
 
 class EI(AbstractAcquisitionFunction):
 
@@ -171,12 +172,17 @@ class EI(AbstractAcquisitionFunction):
 
         return f
     
+    
 class EI_WITH_CONSTRAINTS(EI):
     def __init__(self, model: AbstractEPM, constraint_model: AbstractEPM, par: float=0.0, **kwargs):
         super().__init__(model=model, par=par,**kwargs)
         #self.ei = EI(model=constraint_model, par=par, **kwargs)
         #self.ei_constraints = EI(model=constraint_model, par=par, **kwargs)
         self.constraint_model = constraint_model
+    
+    def compute_success_probabilities(self, X: np.ndarray):
+        class_probabilities = self.constraint_model.predict_marginalized_over_instances(X)
+        return class_probabilities[:,0][:,np.newaxis]
     
     def _compute(self, X: np.ndarray, **kwargs):
         """Computes the EIPS value.
@@ -199,12 +205,12 @@ class EI_WITH_CONSTRAINTS(EI):
         #ei_values = self.ei._compute(X=X, **kwargs)
     
         #ei_values_constraints = self.ei_constraints._compute(X=X, **kwargs)
-        class_probabilities = self.constraint_model.predict_marginalized_over_instances(X)
+        success_probabilities = self.compute_success_probabilities(X)
         # since the StatusType.SUCCESS has the lowest value, namely 1, the success probability is always the first entry
         # in the class_probabilities array.
        
         #ei_values_with_crashes = class_probabilities[:,np.newaxis] * ei_values
-        ei_values_with_crashes = class_probabilities[:,0][:,np.newaxis] * ei_values
+        ei_values_with_crashes = success_probabilities * ei_values
         #print(class_probabilities)
         #return ei_values_with_crashes
         return ei_values_with_crashes

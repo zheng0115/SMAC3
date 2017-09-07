@@ -60,7 +60,11 @@ class ExecuteTARunOld(ExecuteTARun):
         # other value
         cmd = []
         cmd.extend(self.ta)
-        cmd.extend([instance, instance_specific, str(cutoff), "0", str(seed)])
+        predicted_success_prob = config.get_predicted_success_probability()
+        if predicted_success_prob is not None and len(predicted_success_prob.shape) == 2:
+            predicted_success_prob = predicted_success_prob[0,0]
+        cmd.extend([instance, instance_specific, str(cutoff), "0", str(seed), 
+                    str(predicted_success_prob), str(config.origin)])
         for p in config:
             if not config.get(p) is None:
                 cmd.extend(["-" + str(p), str(config[p])])

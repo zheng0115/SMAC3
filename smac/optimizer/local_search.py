@@ -74,7 +74,9 @@ class LocalSearch(object):
         incumbent = start_point
         # Compute the acquisition value of the incumbent
         incumbent_array = convert_configurations_to_array([incumbent])
+        success_prob = self.acquisition_function.compute_success_probabilities(incumbent_array)
         acq_val_incumbent = self.acquisition_function(incumbent_array, *args)
+        incumbent.set_predicted_success_probability(success_prob)
 
         local_search_steps = 0
         neighbors_looked_at = 0
@@ -99,9 +101,10 @@ class LocalSearch(object):
             for neighbor in all_neighbors:
                 s_time = time.time()
                 neighbor_array_ = convert_configurations_to_array([neighbor])
-
+                
+                success_prob = self.acquisition_function.compute_success_probabilities(neighbor_array_)
                 acq_val = self.acquisition_function(neighbor_array_, *args)
-
+                neighbor.set_predicted_success_probability(success_prob)
                 neighbors_looked_at += 1
 
                 time_n.append(time.time() - s_time)
