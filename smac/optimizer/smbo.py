@@ -8,8 +8,7 @@ import math
 
 
 from smac.optimizer.acquisition import AbstractAcquisitionFunction
-from smac.epm.rf_with_instances import RandomForestWithInstances
-from smac.epm.rf_with_instances import RandomForestClassifierWithInstances
+from smac.epm.rf_with_instances import RandomForestWithInstances, AbstractEPM
 from smac.optimizer.local_search import LocalSearch
 from smac.intensification.intensification import Intensifier
 from smac.optimizer import pSMAC
@@ -20,6 +19,7 @@ from smac.initial_design.initial_design import InitialDesign
 from smac.scenario.scenario import Scenario
 from smac.configspace import Configuration, convert_configurations_to_array
 from smac.tae.execute_ta_run import FirstRunCrashedException
+from smac.utils.constraint_model_types import ConstraintModelType
 
 
 __author__ = "Aaron Klein, Marius Lindauer, Matthias Feurer"
@@ -63,8 +63,8 @@ class SMBO(object):
                  acq_optimizer: LocalSearch,
                  acquisition_func: AbstractAcquisitionFunction,
                  rng: np.random.RandomState, 
-                 runhistory2epm_constraints: AbstractRunHistory2EPM=None,
-                 constraint_model: RandomForestWithInstances=None):
+                 runhistory2epms_constraints: typing.List[AbstractRunHistory2EPM]=[],
+                 constraint_models: typing.List[AbstractEPM]=[]):
         """Constructor
 
         Parameters
@@ -80,8 +80,8 @@ class SMBO(object):
         runhistory2epm : AbstractRunHistory2EPM
             Object that implements the AbstractRunHistory2EPM to convert runhistory
             data into EPM data
-        runhistory2epm_constraints: AbstractRunHistory2EPM
-            Object that implements the AbstractRunHistory2EPM to convert runhistory
+        runhistory2epms_constraints: AbstractRunHistory2EPM
+            Objects that implement the AbstractRunHistory2EPM to convert runhistory
             data into EPM constraint data
         intensifier: Intensifier
             intensification of new challengers against incumbent configuration
@@ -94,8 +94,8 @@ class SMBO(object):
         model: RandomForestWithInstances
             empirical performance model (right now, we support only
             RandomForestWithInstances)
-        constraint_model: RandomForestClassifierWithInstances
-            empirical crash model (right now, we support only
+        constraint_models: RandomForestClassifierWithInstances
+            empirical constraint model (right now, we support only
             RandomForestWithInstances)
         acq_optimizer: LocalSearch
             optimizer on acquisition function (right now, we support only a local
@@ -116,13 +116,13 @@ class SMBO(object):
         self.stats = stats
         self.initial_design = initial_design
         self.runhistory = runhistory
-        self.runhistory2epm_constraints = runhistory2epm_constraints
+        self.runhistory2epms_constraints = runhistory2epms_constraints
         self.rh2EPM = runhistory2epm
         self.intensifier = intensifier
         self.aggregate_func = aggregate_func
         self.num_run = num_run
         self.model = model
-        self.constraint_model = constraint_model
+        self.constraint_models = constraint_models
         self.acq_optimizer = acq_optimizer
         self.acquisition_func = acquisition_func
         self.rng = rng
@@ -157,24 +157,25 @@ class SMBO(object):
 
             X, Y = self.rh2EPM.transform(self.runhistory)
             
-            X_constraints, Y_constraints = None,None
+            X_constraints_list = [None] * len(self.runhistory2epms_constraints)
+            Y_constraints_list = [None] * len(self.runhistory2epms_constraints)
             
-            if (self.runhistory2epm_constraints is not None):
-                self.logger.debug("The runhistory2epm_constraints is not none")
-                X_constraints, Y_constraints =  self.runhistory2epm_constraints.transform(
-                    self.runhistory)
-                # have not seen any constraint violation or success yet -> length of X_constraints and Y_constraints is                
-                # zero
-                if len(X_constraints) == 0 or len(Y_constraints) == 0:
-                    X_constraints = None
-                    Y_constraints = None
-           
+            for epm_id, runhistory2epm_constraints in enumerate(self.runhistory2epms_constraints):
+                X_constraints, Y_constraints =  runhistory2epm_constraints.transform(self.runhistory)
+            # have not seen any constraint violation or success yet -> length of X_constraints and Y_constraints is                
+            # zero
+                if len(X_constraints) != 0:
+                    X_constraints_list[epm_id] = X_constraints
+
+                if len(Y_constraints) != 0:
+                    Y_constraints_list[epm_id] = Y_constraints
+
 
             self.logger.debug("Search for next configuration")
             # get all found configurations sorted according to acq
             challengers = self.choose_next(X=X, Y=Y, 
-                                        X_constraints=X_constraints,
-                                        Y_constraints=Y_constraints)
+                                        X_constraints_list=X_constraints_list,
+                                        Y_constraints_list=Y_constraints_list)
 
             time_spent = time.time() - start_time
             time_left = self._get_timebound_for_intensification(time_spent)
@@ -206,8 +207,8 @@ class SMBO(object):
 
         return self.incumbent
 
-    def choose_next(self, X: np.ndarray, Y: np.ndarray, X_constraints: np.ndarray=None, 
-                    Y_constraints: np.ndarray=None, 
+    def choose_next(self, X: np.ndarray, Y: np.ndarray, X_constraints_list: typing.List[np.ndarray]=[], 
+                    Y_constraints_list: typing.List[np.ndarray]=[], 
                     num_configurations_by_random_search_sorted: int=1000,
                     num_configurations_by_local_search: int=None,
                     incumbent_value: float=None):
@@ -249,8 +250,9 @@ class SMBO(object):
             return [x[1] for x in self._get_next_by_random_search(num_points=1)]
 
         self.model.train(X, Y)
-        if (X_constraints is not None and Y_constraints is not None):
-            self.constraint_model.train(X=X_constraints, Y=Y_constraints)
+        for model_id, constraint_model in enumerate(self.constraint_models):
+            if (X_constraints_list[model_id] is not None and Y_constraints_list[model_id] is not None):
+                constraint_model.train(X=X_constraints_list[model_id], Y=Y_constraints_list[model_id])
 
         if incumbent_value is None:
             if self.runhistory.empty():
@@ -258,10 +260,10 @@ class SMBO(object):
                                  "the incumbent is unknown.")
             incumbent_value = self.runhistory.get_cost(self.incumbent)
         
-        if (self.constraint_model is None):
+        if len(self.constraint_models) == 0:
             self.acquisition_func.update(model=self.model, eta=incumbent_value)
         else:
-            self.acquisition_func.update(model=self.model, crash_model=self.constraint_model, eta=incumbent_value)
+            self.acquisition_func.update(model=self.model, constraint_models=self.constraint_models, eta=incumbent_value)
 
         # Get configurations sorted by EI
         next_configs_by_random_search_sorted = \
@@ -399,12 +401,16 @@ class SMBO(object):
         random = self.rng.rand(len(acq_values))
         # Last column is primary sort key!
         indices = np.lexsort((random.flatten(), acq_values.flatten()))
-
-        success_prob = self.acquisition_func.compute_success_probabilities(config_array)
+        try:
+            success_prob = self.acquisition_func.compute_success_probabilities(config_array)
+        except NotImplementedError:
+            success_prob = None
+            
         acq_configs = []
         for ind in indices[::-1]:
             config = configs[ind]
-            config.set_predicted_success_probability(success_prob[ind][0])
+            if success_prob is not None:
+                config.set_predicted_success_probability(success_prob[ind][0])
             acq_configs.append((acq_values[ind][0],config))
             
         return acq_configs
@@ -476,8 +482,11 @@ class ChallengerList(object):
             self._next_is_random = False
             config = self.configuration_space.sample_configuration()
             config.origin = 'Random Search'
-            
-            success_prob = self.acquisition_func.compute_success_probabilities(convert_configurations_to_array([config]))
+            try:
+                success_prob = self.acquisition_func.compute_success_probabilities(
+                    convert_configurations_to_array([config]))
+            except NotImplementedError:
+                success_prob = None
             config.set_predicted_success_probability(success_prob)
             return config
         else:

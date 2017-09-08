@@ -65,6 +65,7 @@ class RandomForestClassifierWithInstances(AbstractEPM):
         return products_of_class_probabilities
 
 
+
 class RandomForestWithInstances(AbstractEPM):
 
     """Interface to the random forest that takes instance features

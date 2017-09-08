@@ -58,7 +58,45 @@ class RunhistoryTest(unittest.TestCase):
                               'output_dir': ''})
         
 
+    def test_regression_constraints(self): 
+        self.scen = Scenario({"cutoff_time": 20, 'cs': self.cs, 'run_obj': 'quality',
+                              'output_dir': ''})
+  
+        self.rh.add(config=self.config1, cost=800000.000000, time=10,
+                    status=StatusType.CONSTRAINT_VIOLATED, instance_id=23,
+                    seed=None,
+                    additional_info={"additional_info": "-1000_4000"})
         
+        self.rh.add(config=self.config2, cost=1, time=10,
+                    status=StatusType.SUCCESS, instance_id=23,
+                    seed=None,
+                    additional_info={"additional_info": "3000_-7000"})
+
+        # rh2epm should use cost and not time field later
+        self.rh.add(config=self.config3, cost=200, time=20,
+                    status=StatusType.CONSTRAINT_VIOLATED, instance_id=1,
+                    seed=45,
+                    additional_info={"additional_info": "2_4"})
+        
+        rh2epm = runhistory2epm.RunHistory2RegressionEPM4Constraints(constraint_id=0,num_params=2,
+                                                       scenario=self.scen)
+        X, y = rh2epm.transform(self.rh)
+        self.assertTrue(
+            np.allclose(X, np.array([[0.005, 0.995], [ 0.995, 0.005], [0.995, 0.995]]), atol=0.001))
+        
+        self.assertTrue(np.allclose(y, np.array([[-1000], [3000],
+                                                 [2]]), atol=0.001))
+        
+        rh2epm = runhistory2epm.RunHistory2RegressionEPM4Constraints(constraint_id=1,num_params=2,
+                                                       scenario=self.scen)
+        X, y = rh2epm.transform(self.rh)
+        self.assertTrue(
+            np.allclose(X, np.array([[0.005, 0.995], [ 0.995, 0.005], [0.995, 0.995]]), atol=0.001))
+        
+        self.assertTrue(np.allclose(y, np.array([[4000], [-7000],
+                                                 [4]]), atol=0.001))
+
+        #print(y)
         
          
     def test_constraints(self):

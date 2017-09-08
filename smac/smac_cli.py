@@ -14,6 +14,7 @@ from smac.utils.io.traj_logging import TrajLogger
 from smac.tae.execute_ta_run import TAEAbortException, FirstRunCrashedException
 import os
 from smac.configspace.merge_config_spaces import merge_configurations_of_local_optimizations
+from smac.utils.constraint_model_types import ConstraintModelType
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -84,18 +85,18 @@ class SMACCLI(object):
         if args_.warmstart_from_local_optimizations:
             initial_configs = merge_configurations_of_local_optimizations(scen, 8)
             
-        support_constraints = False
-        if args_.support_constraints:
-            self.logger.debug("SMAC supports constraints.")
-            support_constraints = True
-            
+        constraint_model_type = ConstraintModelType.NO
+        if args_.learn_constraint_model == ConstraintModelType.CLASSIFICATION.name:
+            constraint_model_type = ConstraintModelType.CLASSIFICATION
+        elif args_.learn_constraint_model == ConstraintModelType.REGRESSION.name:
+            constraint_model_type = ConstraintModelType.REGRESSION
 
         if args_.mode == "SMAC":
             optimizer = SMAC(
                 scenario=scen,
                 rng=np.random.RandomState(args_.seed),
                 runhistory=rh,
-                initial_configurations=initial_configs, support_constraints=support_constraints)
+                initial_configurations=initial_configs, constraint_model_type=constraint_model_type)
         elif args_.mode == "ROAR":
             optimizer = ROAR(
                 scenario=scen,

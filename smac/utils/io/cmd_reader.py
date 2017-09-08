@@ -1,6 +1,7 @@
 import os
 import logging
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
+from smac.utils.constraint_model_types import ConstraintModelType
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -61,7 +62,10 @@ class CMDReader(object):
         # list of trajectory dump files, 
                                             # reads runhistory 
                                             # and uses final incumbent as challenger 
-        req_opts.add_argument("--support_constraints", dest="support_constraints", action='store_true',
+        req_opts.add_argument("--learn_constraint_model", dest="learn_constraint_model", 
+                              default=ConstraintModelType.NO.name,
+                              choices=[ConstraintModelType.NO.name, ConstraintModelType.CLASSIFICATION.name, 
+                                       ConstraintModelType.REGRESSION.name],
                               help=SUPPRESS) 
         
         req_opts.set_defaults(support_constraints=False)

@@ -2,9 +2,12 @@
 import abc
 import logging
 from scipy.stats import norm
+import typing
 import numpy as np
 
 from smac.epm.base_epm import AbstractEPM
+from smac.utils.constraint_model_types import ConstraintModelType
+from smac.utils import constraint_model_types
 
 __author__ = "Aaron Klein, Marius Lindauer"
 __copyright__ = "Copyright 2017, ML4AAD"
@@ -97,6 +100,9 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
     
+    def compute_success_probabilities(self, X: np.ndarray):
+        raise NotImplementedError
+    
     
 
 class EI(AbstractAcquisitionFunction):
@@ -174,15 +180,39 @@ class EI(AbstractAcquisitionFunction):
     
     
 class EI_WITH_CONSTRAINTS(EI):
-    def __init__(self, model: AbstractEPM, constraint_model: AbstractEPM, par: float=0.0, **kwargs):
+    def __init__(self, model: AbstractEPM, constraint_models:  typing.List[AbstractEPM], 
+                 constraint_model_type : ConstraintModelType, step_size_of_sigmoid=0.0001, par: float=0.0, **kwargs):
         super().__init__(model=model, par=par,**kwargs)
         #self.ei = EI(model=constraint_model, par=par, **kwargs)
         #self.ei_constraints = EI(model=constraint_model, par=par, **kwargs)
-        self.constraint_model = constraint_model
+        self.constraint_models = constraint_models
+        self.constraint_model_type = constraint_model_type
+        self.step_size_of_sigmoid = step_size_of_sigmoid
+        
+    def sigmoid(self, x):
+            if x >= 0:
+                z = np.exp(-self.step_size_of_sigmoid*x)
+                return 1 / (1 + z)
+            else:
+                z = np.exp(self.step_size_of_sigmoid*x)
+                return z / (1 + z)
+            
+    def sigmoid_array(self, x):
+        sigmoid_array = np.vectorize(self.sigmoid)
+        return sigmoid_array(x)
     
     def compute_success_probabilities(self, X: np.ndarray):
-        class_probabilities = self.constraint_model.predict_marginalized_over_instances(X)
-        return class_probabilities[:,0][:,np.newaxis]
+        if self.constraint_model_type == ConstraintModelType.CLASSIFICATION:
+            success_probabilties = self.constraint_models[0].predict_marginalized_over_instances(X)[:,0]
+        elif self.constraint_model_type == ConstraintModelType.REGRESSION:
+            success_probabilties = np.ones(shape=(len(X), 1))
+            for constraint_model in self.constraint_models:
+                m, v = constraint_model.predict_marginalized_over_instances(X)
+                success_probabilties *= self.sigmoid_array(m)
+
+        else:
+            raise NotImplementedError()
+        return success_probabilties.reshape((-1,1))
     
     def _compute(self, X: np.ndarray, **kwargs):
         """Computes the EIPS value.
