@@ -19,7 +19,10 @@ from smac.initial_design.initial_design import InitialDesign
 from smac.scenario.scenario import Scenario
 from smac.configspace import Configuration, convert_configurations_to_array
 from smac.tae.execute_ta_run import FirstRunCrashedException
-from smac.utils.constraint_model_types import ConstraintModelType
+from smac.utils.validate import Validator
+from smac.utils.io.traj_logging import TrajLogger
+import os
+
 
 
 __author__ = "Aaron Klein, Marius Lindauer, Matthias Feurer"
@@ -136,13 +139,9 @@ class SMBO(object):
             The best found configuration
         """
         self.stats.start_timing()
-        try:
-            self.incumbent = self.initial_design.run()
-        except FirstRunCrashedException as err:
-            if self.scenario.abort_on_first_run_crash:
-                raise
-            else:
-                self.incumbent = self.initial_design._select_configuration()
+
+        self.incumbent = self.initial_design.run()
+
 
         # Main BO loop
         iteration = 1
@@ -221,11 +220,6 @@ class SMBO(object):
             instance features.
         Y : (N, O) numpy array
             The function values for each configuration instance pair.
-        X_constraints : (N, D) numpy array
-            Each row contains a configuration and one set of
-            instance features.
-        Y_constraints : (N, O) numpy array
-            The constraint values for each configuration instance pair.
         num_configurations_by_random_search_sorted: int
             Number of configurations optimized by random search
         num_configurations_by_local_search: int
@@ -259,7 +253,7 @@ class SMBO(object):
                 raise ValueError("Runhistory is empty and the cost value of "
                                  "the incumbent is unknown.")
             incumbent_value = self.runhistory.get_cost(self.incumbent)
-        
+            
         if len(self.constraint_models) == 0:
             self.acquisition_func.update(model=self.model, eta=incumbent_value)
         else:
@@ -313,6 +307,41 @@ class SMBO(object):
         challengers = ChallengerList(next_configs_by_acq_value,
                                      self.config_space, acquisition_func=self.acquisition_func)
         return challengers
+
+    def validate(self, config_mode='inc', instance_mode='train+test',
+                 repetitions=1, n_jobs=-1, backend='threading'):
+        """Create validator-object and run validation, using
+        scenario-information, runhistory from smbo and tae_runner from intensify
+
+        Parameters
+        ----------
+        config_mode: string
+            what configurations to validate
+            from [def, inc, def+inc, time, all], time means evaluation at
+            timesteps 2^-4, 2^-3, 2^-2, 2^-1, 2^0, 2^1, ...
+        instance_mode: string
+            what instances to use for validation, from [train, test, train+test]
+        repetitions: int
+            number of repetitions in nondeterministic algorithms (in
+            deterministic will be fixed to 1)
+        n_jobs: int
+            number of parallel processes used by joblib
+
+        Returns
+        -------
+        runhistory: RunHistory
+            runhistory containing all specified runs
+        """
+        traj_fn = os.path.join(self.scenario.output_dir, "traj_aclib2.json")
+        trajectory = TrajLogger.read_traj_aclib_format(fn=traj_fn, cs=self.scenario.cs)
+        new_rh_path = os.path.join(self.scenario.output_dir, "validated_runhistory.json")
+
+        validator = Validator(self.scenario, trajectory, new_rh_path, self.rng)
+        new_rh = validator.validate(config_mode, instance_mode, repetitions, n_jobs,
+                                    backend, self.runhistory,
+                                    self.intensifier.tae_runner)
+        return new_rh
+
 
     def _get_next_by_random_search(self, num_points: int=1000,
                                    _sorted: bool=False):
