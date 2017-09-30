@@ -83,7 +83,7 @@ class SMACCLI(object):
                 initial_configs.append(trajectory[-1]["incumbent"])
                 
         if args_.warmstart_from_local_optimizations:
-            initial_configs = merge_configurations_of_local_optimizations(scen, 8)
+            initial_configs = merge_configurations_of_local_optimizations(scen, 100)
             
         constraint_model_type = ConstraintModelType.NO
         if args_.learn_constraint_model == ConstraintModelType.CLASSIFICATION.name:

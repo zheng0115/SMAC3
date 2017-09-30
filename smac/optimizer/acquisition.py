@@ -188,18 +188,6 @@ class EI_WITH_CONSTRAINTS(EI):
         self.constraint_models = constraint_models
         self.constraint_model_type = constraint_model_type
         self.step_size_of_sigmoid = step_size_of_sigmoid
-        
-    def sigmoid(self, x):
-            if x >= 0:
-                z = np.exp(-self.step_size_of_sigmoid*x)
-                return 1 / (1 + z)
-            else:
-                z = np.exp(self.step_size_of_sigmoid*x)
-                return z / (1 + z)
-            
-    def sigmoid_array(self, x):
-        sigmoid_array = np.vectorize(self.sigmoid)
-        return sigmoid_array(x)
     
     def compute_success_probabilities(self, X: np.ndarray):
         if self.constraint_model_type == ConstraintModelType.CLASSIFICATION:
@@ -207,9 +195,11 @@ class EI_WITH_CONSTRAINTS(EI):
         elif self.constraint_model_type == ConstraintModelType.REGRESSION:
             success_probabilties = np.ones(shape=(len(X), 1))
             for constraint_model in self.constraint_models:
-                m, v = constraint_model.predict_marginalized_over_instances(X)
-                success_probabilties *= self.sigmoid_array(m)
-
+                # constraint_model.rf is None if constraint model is not trained yet. This happens if the first 
+                # run has the status CRASH and not SUCCESS or CONSTRAINT VIOLATION
+                if constraint_model.rf is not None:
+                    m, v = constraint_model.predict_marginalized_over_instances(X)
+                    success_probabilties *= m
         else:
             raise NotImplementedError()
         return success_probabilties.reshape((-1,1))
@@ -239,11 +229,11 @@ class EI_WITH_CONSTRAINTS(EI):
         # since the StatusType.SUCCESS has the lowest value, namely 1, the success probability is always the first entry
         # in the class_probabilities array.
        
-        #ei_values_with_crashes = class_probabilities[:,np.newaxis] * ei_values
-        ei_values_with_crashes = success_probabilities * ei_values
+        #product_ei_values_constraint_probs = class_probabilities[:,np.newaxis] * ei_values
+        product_ei_values_constraint_probs = success_probabilities * ei_values
         #print(class_probabilities)
-        #return ei_values_with_crashes
-        return ei_values_with_crashes
+        #return product_ei_values_constraint_probs
+        return product_ei_values_constraint_probs
 
 
 

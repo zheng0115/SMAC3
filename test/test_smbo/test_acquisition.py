@@ -41,15 +41,6 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
         self.ei = EI(self.model)
         
         
-    def test_sigmoid_array(self):
-        X = np.array([-sys.float_info.max, -1000, 0, 1000, sys.float_info.max])
-        sig_values = self.ei_with_constraints2.sigmoid_array(X)
-        self.assertAlmostEqual(sig_values[0], 0)
-        self.assertTrue(sig_values[1] < 0.5)
-        self.assertAlmostEqual(sig_values[2], 0.5)
-        self.assertTrue(sig_values[3] > 0.5)
-        self.assertAlmostEqual(sig_values[4], 1)
-    
     def test_1xD(self):
         X = np.array([[1.0, 1.0, 1.0]])
         self.ei.update(model=self.model, eta=1.0)
@@ -66,7 +57,7 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
                                          constraint_models=[self.model, self.model], eta=1.0)
         
         m, v = self.model.predict_marginalized_over_instances(X)
-        success_prob = self.ei_with_constraints2.sigmoid_array(m)
+        success_prob = m
         
         acq_ei_with_constraints = self.ei_with_constraints2(X)
         self.assertEqual(acq_ei_with_constraints.shape, (1, 1))
@@ -89,7 +80,7 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
                                          constraint_models=[self.model, self.model], eta=1.0)
         
         m,v = self.model.predict_marginalized_over_instances(X)
-        success_prob = self.ei_with_constraints2.sigmoid_array(m)
+        success_prob = m
         
         acq_ei_with_constraints = self.ei_with_constraints2(X)
         self.assertEqual(acq_ei_with_constraints.shape, (3, 1))
@@ -109,7 +100,7 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
         self.ei_with_constraints2.update(model=self.model, 
                                          constraint_models=[self.model, self.model], eta=1.0)
         m,v = self.model.predict_marginalized_over_instances(X)
-        success_prob = self.ei_with_constraints2.sigmoid_array(m)
+        success_prob = m
         
         acq_ei_with_constraints = self.ei_with_constraints2(X)
         self.assertEqual(acq_ei_with_constraints.shape, (1, 1))
@@ -132,7 +123,7 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
         self.ei_with_constraints2.update(model=self.model, 
                                          constraint_models=[self.model, self.model], eta=1.0)
         m,v = self.model.predict_marginalized_over_instances(X)
-        success_prob = self.ei_with_constraints2.sigmoid_array(m)
+        success_prob = m
         
         acq_ei_with_constraints = self.ei_with_constraints2(X)
         self.assertEqual(acq_ei_with_constraints.shape, (3, 1))
@@ -151,7 +142,7 @@ class TestEI_WITH_CONSTRAINTS(unittest.TestCase):
                                          constraint_models=[self.model, self.model], eta=1.0)
         
         m,v = self.model.predict_marginalized_over_instances(X)
-        success_prob = self.ei_with_constraints2.sigmoid_array(m)
+        success_prob = m
         
         acq_ei_with_constraints = self.ei_with_constraints2(X)
         self.assertEqual(acq_ei_with_constraints.shape, (1, 1))
