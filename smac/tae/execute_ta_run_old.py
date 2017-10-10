@@ -3,6 +3,7 @@ from subprocess import Popen, PIPE
 
 from smac.configspace import Configuration
 from smac.tae.execute_ta_run import StatusType, ExecuteTARun
+from smac.utils.constraint_variants import ConstraintVariant
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -23,7 +24,7 @@ class ExecuteTARunOld(ExecuteTARun):
             instance:str=None,
             cutoff:float=None,
             seed:int=12345,
-            instance_specific:str="0"
+            instance_specific:str="0",
             ):
         """Runs target algorithm <self.ta> with configuration <config> on
         instance <instance> with instance specifics <specifics> for at most
@@ -126,11 +127,19 @@ class ExecuteTARunOld(ExecuteTARun):
         # other value
         cmd = []
         cmd.extend(self.ta)
-        predicted_success_prob = config.get_predicted_success_probability()
-        if predicted_success_prob is not None and len(predicted_success_prob.shape) == 2:
-            predicted_success_prob = predicted_success_prob[0,0]
-        cmd.extend([instance, instance_specific, str(cutoff), "0", str(seed), 
+        
+        if self.constraint_variant != ConstraintVariant.NO:
+            predicted_success_prob = config.get_predicted_success_probability()
+            
+            if predicted_success_prob is not None and len(predicted_success_prob.shape) == 2:
+                predicted_success_prob = predicted_success_prob[0,0]
+                
+            cmd.extend([instance, instance_specific, str(cutoff), "0", str(seed), 
                     str(predicted_success_prob), str(config.origin)])
+        else:
+            cmd.extend([instance, instance_specific, str(cutoff), "0", str(seed)])
+            
+        
         for p in config:
             if not config.get(p) is None:
                 cmd.extend(["-" + str(p), str(config[p])])

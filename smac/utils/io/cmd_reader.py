@@ -1,7 +1,7 @@
 import os
 import logging
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
-from smac.utils.constraint_model_types import ConstraintModelType
+from smac.utils.constraint_variants import ConstraintVariant
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -62,13 +62,11 @@ class CMDReader(object):
         # list of trajectory dump files, 
                                             # reads runhistory 
                                             # and uses final incumbent as challenger 
-        req_opts.add_argument("--learn_constraint_model", dest="learn_constraint_model", 
-                              default=ConstraintModelType.NO.name,
-                              choices=[ConstraintModelType.NO.name, ConstraintModelType.CLASSIFICATION.name, 
-                                       ConstraintModelType.REGRESSION.name],
+        req_opts.add_argument("--constraint_variant", dest="constraint_variant", 
+                              default=ConstraintVariant.VARIANT_1,
+                              choices=[ConstraintVariant.VARIANT_1.name, ConstraintVariant.VARIANT_2.name, 
+                                       ConstraintVariant.VARIANT_3.name],
                               help=SUPPRESS) 
-        
-        req_opts.set_defaults(support_constraints=False)
 
         args_, misc = parser.parse_known_args()
         self._check_args(args_)

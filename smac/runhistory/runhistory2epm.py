@@ -324,69 +324,10 @@ class RunHistory2EPM4Cost(AbstractRunHistory2EPM):
 
         return X, y
 
-
-class RunHistory2RegressionEPM4Constraints(AbstractRunHistory2EPM):
-    def __init__(self, constraint_id : int, *args, **kwargs):
-        AbstractRunHistory2EPM.__init__(self, *args, **kwargs)
-        self.success_states = [StatusType.SUCCESS, StatusType.CONSTRAINT_VIOLATED]
-        self.constraint_id = constraint_id
-    
-    def _build_matrix(self, run_dict: typing.Mapping[RunKey, RunValue],
-                      runhistory: RunHistory, instances: typing.List[str]=None,
-                      par_factor: int=1):
-        """"Builds X,y matrixes from selected runs from runhistory
-
-        Parameters
-        ----------
-        run_dict: dict: RunKey -> RunValue
-            dictionary from RunHistory.RunKey to RunHistory.RunValue
-        runhistory: RunHistory
-            runhistory object
-        instances: list
-            list of instances
-        par_factor: int
-            penalization factor for censored runtime data
-
-        Returns
-        -------
-        X: np.ndarray
-        Y: np.ndarray
-        """
-
-        # First build nan-matrix of size #configs x #params+1
-        n_rows = len(run_dict)
-        n_cols = self.num_params
-        X = np.ones([n_rows, n_cols + self.n_feats]) * np.nan
-        y = np.ones([n_rows, 1])
-
-        # Then populate matrix
-        for row, (key, run) in enumerate(run_dict.items()):
-            # Scaling is automatically done in configSpace
-            conf = runhistory.ids_config[key.config_id]
-            conf_vector = convert_configurations_to_array([conf])[0]
-            if self.n_feats:
-                feats = self.instance_features[key.instance_id]
-                X[row, :] = np.hstack((conf_vector, feats))
-            else:
-                X[row, :] = conf_vector
-            # run_array[row, -1] = instances[row]
-    
-            
-            if run.status == StatusType.SUCCESS or run.status == StatusType.CONSTRAINT_VIOLATED:
-                additional_info = run.additional_info["additional_info"]
-                success_values = additional_info.split("_")
-                y[row, 0] = float(success_values[self.constraint_id])
-    
-           
-                #y[row, 0] = 0
-
-
-        return X, y
-    
     
 
 
-class RunHistory2EPM4Constraints(AbstractRunHistory2EPM):
+class RunHistory2EPM4ConstraintVariant2(AbstractRunHistory2EPM):
     """TODO"""
     
     def __init__(self, *args, **kwargs):
@@ -441,9 +382,6 @@ class RunHistory2EPM4Constraints(AbstractRunHistory2EPM):
 
 
         return X, y
-    
-    
-        
 
 
 

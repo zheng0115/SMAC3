@@ -6,6 +6,7 @@ import numpy as np
 
 from smac.configspace import Configuration
 from smac.utils.constants import MAXINT
+from smac.utils.constraint_variants import ConstraintVariant
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -82,7 +83,7 @@ class ExecuteTARun(object):
 
     def __init__(self, ta, stats=None, runhistory=None,
                  run_obj: str="runtime", par_factor: int=1,
-                 cost_for_crash: float=float(MAXINT)):
+                 cost_for_crash: float=float(MAXINT), constraint_variant: ConstraintVariant=ConstraintVariant.NO):
         """Constructor
 
         Parameters
@@ -108,6 +109,7 @@ class ExecuteTARun(object):
 
         self.par_factor = par_factor
         self.crash_cost = cost_for_crash
+        self.constraint_variant = constraint_variant
 
         self.logger = logging.getLogger(
             self.__module__ + '.' + self.__class__.__name__)

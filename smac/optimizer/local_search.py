@@ -1,6 +1,7 @@
 import logging
 import time
 import numpy as np
+from smac.optimizer.acquisition import EI_CONSTRAINT_VARIANT2, EI_CONSTRAINT_VARIANT3
 
 from smac.configspace import get_one_exchange_neighbourhood, \
     convert_configurations_to_array, Configuration
@@ -74,9 +75,14 @@ class LocalSearch(object):
         incumbent = start_point
         # Compute the acquisition value of the incumbent
         incumbent_array = convert_configurations_to_array([incumbent])
-        try:
+        
+        if isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT3): 
+            self.acquisition_function.update_success_probobilities([incumbent])
+       
+        if (isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT2) or 
+            isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT3)): 
             success_prob = self.acquisition_function.compute_success_probabilities(incumbent_array)
-        except NotImplementedError:
+        else:
             success_prob = None
         acq_val_incumbent = self.acquisition_function(incumbent_array, *args)
         incumbent.set_predicted_success_probability(success_prob)
@@ -104,9 +110,13 @@ class LocalSearch(object):
             for neighbor in all_neighbors:
                 s_time = time.time()
                 neighbor_array_ = convert_configurations_to_array([neighbor])
-                try:
-                    success_prob = self.acquisition_function.compute_success_probabilities(neighbor_array_)
-                except NotImplementedError:
+                if isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT3): 
+                    self.acquisition_function.update_success_probobilities([neighbor])
+                
+                if (isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT2) or 
+                    isinstance(self.acquisition_function, EI_CONSTRAINT_VARIANT3)): 
+                    success_prob = self.acquisition_function.compute_success_probabilities(incumbent_array)
+                else:
                     success_prob = None
                 acq_val = self.acquisition_function(neighbor_array_, *args)
                 neighbor.set_predicted_success_probability(success_prob)

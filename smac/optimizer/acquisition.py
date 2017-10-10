@@ -6,8 +6,10 @@ import typing
 import numpy as np
 
 from smac.epm.base_epm import AbstractEPM
-from smac.utils.constraint_model_types import ConstraintModelType
-from smac.utils import constraint_model_types
+from smac.epm.rf_with_instances import RandomForestClassifierWithInstances
+from smac.configspace import Configuration
+import json
+import requests
 
 __author__ = "Aaron Klein, Marius Lindauer"
 __copyright__ = "Copyright 2017, ML4AAD"
@@ -99,11 +101,6 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
             Acquisition function values wrt X
         """
         raise NotImplementedError()
-    
-    def compute_success_probabilities(self, X: np.ndarray):
-        raise NotImplementedError
-    
-    
 
 class EI(AbstractAcquisitionFunction):
 
@@ -178,30 +175,15 @@ class EI(AbstractAcquisitionFunction):
 
         return f
     
-    
-class EI_WITH_CONSTRAINTS(EI):
-    def __init__(self, model: AbstractEPM, constraint_models:  typing.List[AbstractEPM], 
-                 constraint_model_type : ConstraintModelType, step_size_of_sigmoid=0.0001, par: float=0.0, **kwargs):
+
+class EI_CONSTRAINT_VARIANT2(EI):
+    def __init__(self, model: AbstractEPM, constraint_model:  RandomForestClassifierWithInstances, 
+                 par: float=0.0, **kwargs):
         super().__init__(model=model, par=par,**kwargs)
-        #self.ei = EI(model=constraint_model, par=par, **kwargs)
-        #self.ei_constraints = EI(model=constraint_model, par=par, **kwargs)
-        self.constraint_models = constraint_models
-        self.constraint_model_type = constraint_model_type
-        self.step_size_of_sigmoid = step_size_of_sigmoid
-    
+        self.constraint_model = constraint_model
+
     def compute_success_probabilities(self, X: np.ndarray):
-        if self.constraint_model_type == ConstraintModelType.CLASSIFICATION:
-            success_probabilties = self.constraint_models[0].predict_marginalized_over_instances(X)[:,0]
-        elif self.constraint_model_type == ConstraintModelType.REGRESSION:
-            success_probabilties = np.ones(shape=(len(X), 1))
-            for constraint_model in self.constraint_models:
-                # constraint_model.rf is None if constraint model is not trained yet. This happens if the first 
-                # run has the status CRASH and not SUCCESS or CONSTRAINT VIOLATION
-                if constraint_model.rf is not None:
-                    m, v = constraint_model.predict_marginalized_over_instances(X)
-                    success_probabilties *= m
-        else:
-            raise NotImplementedError()
+        success_probabilties = self.constraint_model.predict_marginalized_over_instances(X)[:,0]
         return success_probabilties.reshape((-1,1))
     
     def _compute(self, X: np.ndarray, **kwargs):
@@ -222,19 +204,67 @@ class EI_WITH_CONSTRAINTS(EI):
         if len(X.shape) == 1:
             X = X[:, np.newaxis]
         ei_values = super()._compute(X=X, **kwargs)
-        #ei_values = self.ei._compute(X=X, **kwargs)
-    
-        #ei_values_constraints = self.ei_constraints._compute(X=X, **kwargs)
-        success_probabilities = self.compute_success_probabilities(X)
-        # since the StatusType.SUCCESS has the lowest value, namely 1, the success probability is always the first entry
-        # in the class_probabilities array.
-       
-        #product_ei_values_constraint_probs = class_probabilities[:,np.newaxis] * ei_values
-        product_ei_values_constraint_probs = success_probabilities * ei_values
-        #print(class_probabilities)
-        #return product_ei_values_constraint_probs
-        return product_ei_values_constraint_probs
 
+        success_probabilities = self.compute_success_probabilities(X)
+
+        product_ei_values_constraint_probs = success_probabilities * ei_values
+
+        return product_ei_values_constraint_probs
+ 
+    
+class EI_CONSTRAINT_VARIANT3(EI):
+    def __init__(self, model: AbstractEPM, instance_id,
+                 step_size_of_sigmoid=0.0001, par: float=0.0, **kwargs):
+        super().__init__(model=model, par=par,**kwargs)
+        self.step_size_of_sigmoid = step_size_of_sigmoid
+        self.instance_id = instance_id
+        self.ignore_ei_term = False
+        self.session = requests.Session()
+        logging.getLogger("urllib3").setLevel(logging.WARNING)
+   
+       
+    def update_success_probobilities(self, configs=typing.List[Configuration]):
+        self.success_probabilities = np.zeros(shape=(len(configs), 1))
+        
+        for config_id, config in enumerate(configs):
+            parameters = []
+            for p in config:
+                if not config.get(p) is None:
+                    parameters.extend(["-" + str(p), str(config[p])])
+            
+            headers = {'content-type': 'application/json', 'Connection': 'Keep-Alive'}
+            url = 'http://localhost:8180/approximateSuccessProbility/'
+            #+ "," + str(sys.argv[1])
+            parameters.append(self.instance_id)
+            data = json.dumps(parameters)
+            r_simulate = self.session.post(url, data=data, headers=headers)
+            self.success_probabilities[config_id,0] = r_simulate.json()
+
+    def compute_success_probabilities(self, X: np.ndarray):
+        return self.success_probabilities
+    
+    def _compute(self, X: np.ndarray, **kwargs):
+        """Computes the EIPS value.
+ 
+        Parameters
+        ----------
+        X: np.ndarray(N, D), The input point where the acquisition function
+            should be evaluate. The dimensionality of X is (N, D), with N as
+            the number of points to evaluate at and D is the number of
+            dimensions of one X.
+ 
+        Returns
+        -------
+        np.ndarray(N,1)
+            Expected Improvement per Second of X
+        """
+        if self.ignore_ei_term:
+            return self.success_probabilities
+        else:
+            if len(X.shape) == 1:
+                X = X[:, np.newaxis]
+            ei_values = super()._compute(X=X, **kwargs)
+            return self.success_probabilities * ei_values
 
 
 class EIPS(EI):

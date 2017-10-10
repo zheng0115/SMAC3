@@ -14,7 +14,7 @@ from smac.utils.io.traj_logging import TrajLogger
 from smac.tae.execute_ta_run import TAEAbortException, FirstRunCrashedException
 import os
 from smac.configspace.merge_config_spaces import merge_configurations_of_local_optimizations
-from smac.utils.constraint_model_types import ConstraintModelType
+from smac.utils.constraint_variants import ConstraintVariant
 
 __author__ = "Marius Lindauer"
 __copyright__ = "Copyright 2015, ML4AAD"
@@ -85,18 +85,20 @@ class SMACCLI(object):
         if args_.warmstart_from_local_optimizations:
             initial_configs = merge_configurations_of_local_optimizations(scen, 100)
             
-        constraint_model_type = ConstraintModelType.NO
-        if args_.learn_constraint_model == ConstraintModelType.CLASSIFICATION.name:
-            constraint_model_type = ConstraintModelType.CLASSIFICATION
-        elif args_.learn_constraint_model == ConstraintModelType.REGRESSION.name:
-            constraint_model_type = ConstraintModelType.REGRESSION
+        constraint_variant = ConstraintVariant.NO
+        if args_.constraint_variant == ConstraintVariant.VARIANT_1.name:
+            constraint_variant = ConstraintVariant.VARIANT_1
+        elif args_.constraint_variant == ConstraintVariant.VARIANT_2.name:
+            constraint_variant = ConstraintVariant.VARIANT_2
+        elif args_.constraint_variant == ConstraintVariant.VARIANT_3.name:
+            constraint_variant = ConstraintVariant.VARIANT_3
 
         if args_.mode == "SMAC":
             optimizer = SMAC(
                 scenario=scen,
                 rng=np.random.RandomState(args_.seed),
                 runhistory=rh,
-                initial_configurations=initial_configs, constraint_model_type=constraint_model_type)
+                initial_configurations=initial_configs, constraint_variant=constraint_variant)
         elif args_.mode == "ROAR":
             optimizer = ROAR(
                 scenario=scen,

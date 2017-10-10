@@ -12,7 +12,7 @@ from smac.stats.stats import Stats
 from smac.scenario.scenario import Scenario
 from smac.runhistory.runhistory import RunHistory
 from smac.runhistory.runhistory2epm import AbstractRunHistory2EPM, \
-    RunHistory2EPM4LogCost, RunHistory2EPM4Cost, RunHistory2EPM4Constraints, RunHistory2RegressionEPM4Constraints
+    RunHistory2EPM4LogCost, RunHistory2EPM4Cost, RunHistory2EPM4ConstraintVariant2
 from smac.initial_design.initial_design import InitialDesign
 from smac.initial_design.default_configuration_design import \
     DefaultConfiguration
@@ -22,7 +22,7 @@ from smac.initial_design.multi_config_initial_design import \
 from smac.intensification.intensification import Intensifier
 from smac.optimizer.smbo import SMBO
 from smac.optimizer.objective import average_cost
-from smac.optimizer.acquisition import EI, LogEI, EI_WITH_CONSTRAINTS, AbstractAcquisitionFunction
+from smac.optimizer.acquisition import EI, LogEI, EI_CONSTRAINT_VARIANT2, EI_CONSTRAINT_VARIANT3, AbstractAcquisitionFunction
 from smac.optimizer.local_search import LocalSearch
 from smac.epm.rf_with_instances import RandomForestWithInstances
 from smac.epm.rfr_imputator import RFRImputator
@@ -34,7 +34,7 @@ from smac.configspace import Configuration
 from pexpect.screen import constrain
 from smac.epm.rf_with_instances import RandomForestClassifierWithInstances
 from dask.array import learn
-from smac.utils.constraint_model_types import ConstraintModelType
+from smac.utils.constraint_variants import ConstraintVariant
 
 
 __author__ = "Marius Lindauer"
@@ -70,9 +70,9 @@ class SMAC(object):
                  initial_configurations: typing.List[Configuration]=None,
                  stats: Stats=None,
                  rng: np.random.RandomState=None,
-                 constraint_models: typing.List[AbstractEPM]=[],
-                 constraint_model_type: ConstraintModelType=ConstraintModelType.NO, 
-                 runhistory2epms_constraints: typing.List[AbstractRunHistory2EPM]=[]):
+                 constraint_model: RandomForestClassifierWithInstances=None,
+                 constraint_variant: ConstraintVariant=ConstraintVariant.VARIANT_1, 
+                 runhistory2epm_constraint_variant2: RunHistory2EPM4ConstraintVariant2=None):
         """Constructor
 
         Parameters
@@ -159,27 +159,19 @@ class SMAC(object):
                                               seed=rng.randint(MAXINT),
                                               pca_components=scenario.PCA_DIM)
         
-        if len(constraint_models)==0 and constraint_model_type != ConstraintModelType.NO:
-            if constraint_model_type == ConstraintModelType.CLASSIFICATION:
-                constraint_models = [RandomForestClassifierWithInstances(instance_features=scenario.feature_array)]
-            elif constraint_model_type == ConstraintModelType.REGRESSION:
-                constraint_models = [RandomForestWithInstances(types=types, bounds=bounds,
-                                              instance_features=scenario.feature_array,
-                                              seed=rng.randint(MAXINT),
-                                              pca_components=scenario.PCA_DIM),
-                                     RandomForestWithInstances(types=types, bounds=bounds,
-                                              instance_features=scenario.feature_array,
-                                              seed=rng.randint(MAXINT),
-                                              pca_components=scenario.PCA_DIM)]
+        if constraint_model is None and constraint_variant == ConstraintVariant.VARIANT_2:
+            constraint_model = RandomForestClassifierWithInstances(instance_features=scenario.feature_array)
                                                      
 
         # initial acquisition function
         if acquisition_function is None:
             if scenario.run_obj == "runtime":
                 acquisition_function = LogEI(model=model)
-            elif constraint_model_type != ConstraintModelType.NO:
-                acquisition_function = EI_WITH_CONSTRAINTS(model=model, constraint_models=constraint_models,
-                                                           constraint_model_type=constraint_model_type)
+            elif constraint_variant == ConstraintVariant.VARIANT_2:
+                acquisition_function = EI_CONSTRAINT_VARIANT2(model=model, constraint_model=constraint_model)
+            elif constraint_variant == ConstraintVariant.VARIANT_3:
+                acquisition_function = EI_CONSTRAINT_VARIANT3(model=model,
+                                                              instance_id=list(scenario.feature_dict.keys())[0])
             else:
                 acquisition_function = EI(model=model)
         # inject model if necessary
@@ -199,7 +191,8 @@ class SMAC(object):
                                          run_obj=scenario.run_obj,
                                          runhistory=runhistory,
                                          par_factor=scenario.par_factor,
-                                         cost_for_crash=scenario.cost_for_crash)
+                                         cost_for_crash=scenario.cost_for_crash,
+                                         constraint_variant=constraint_variant)
         # Second case, the tae_runner is a function to be optimized
         elif callable(tae_runner):
             tae_runner = ExecuteTAFuncDict(ta=tae_runner,
@@ -301,20 +294,18 @@ class SMAC(object):
 
         # initial conversion of runhistory into EPM data
         
-        if len(runhistory2epms_constraints) == 0 and constraint_model_type != ConstraintModelType.NO:
+        if runhistory2epm_constraint_variant2 is None and constraint_variant == ConstraintVariant.VARIANT_2:
             num_params = len(scenario.cs.get_hyperparameters())
-            if constraint_model_type == ConstraintModelType.CLASSIFICATION:
-                runhistory2epms_constraints = [RunHistory2EPM4Constraints(scenario=scenario, num_params=num_params,
-                                                                            impute_censored_data=False, 
-                                                                            impute_state=None)]
+            runhistory2epm_constraint_variant2 = RunHistory2EPM4ConstraintVariant2(scenario=scenario, 
+                                                num_params=num_params,impute_censored_data=False, impute_state=None)
                 
-            elif constraint_model_type == ConstraintModelType.REGRESSION:
-                runhistory2epms_constraints = [RunHistory2RegressionEPM4Constraints(scenario=scenario, num_params=num_params,
-                                                                            impute_censored_data=False, 
-                                                                            impute_state=None, constraint_id=0),
-                                               RunHistory2RegressionEPM4Constraints(scenario=scenario, num_params=num_params,
-                                                                            impute_censored_data=False, 
-                                                                            impute_state=None, constraint_id=1)]
+#             elif constraint_model_type == ConstraintModelType.REGRESSION:
+#                 runhistory2epms_constraints = [RunHistory2RegressionEPM4Constraints(scenario=scenario, num_params=num_params,
+#                                                                             impute_censored_data=False, 
+#                                                                             impute_state=None, constraint_id=0),
+#                                                RunHistory2RegressionEPM4Constraints(scenario=scenario, num_params=num_params,
+#                                                                             impute_censored_data=False, 
+#                                                                             impute_state=None, constraint_id=1)]
             
         if runhistory2epm is None:
 
@@ -343,10 +334,9 @@ class SMAC(object):
                     imputor=imputor)
 
             elif scenario.run_obj == 'quality':
-                if constraint_model_type == ConstraintModelType.NO:
+                if constraint_variant == ConstraintVariant.VARIANT_1:
                     runhistory2epm = RunHistory2EPM4Cost(scenario=scenario, num_params=num_params,
-                                                     success_states=[
-                                                         StatusType.SUCCESS, 
+                                                     success_states=[StatusType.SUCCESS, 
                                                          StatusType.CRASHED, StatusType.CONSTRAINT_VIOLATED],
                                                      impute_censored_data=False, impute_state=None)
                 else:
@@ -374,8 +364,9 @@ class SMAC(object):
                            model=model,
                            acq_optimizer=local_search,
                            acquisition_func=acquisition_function,
-                           rng=rng, constraint_models=constraint_models,
-                           runhistory2epms_constraints=runhistory2epms_constraints)
+                           rng=rng, constraint_model=constraint_model,
+                           constraint_variant=constraint_variant,
+                           runhistory2epm_constraint_variant2=runhistory2epm_constraint_variant2)
 
     @staticmethod
     def _get_rng(rng):

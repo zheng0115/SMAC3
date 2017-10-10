@@ -1,0 +1,9 @@
+algo = python /home/mrudolph/gsim/python/smacInterface/src/scripts/simulate.py
+paramfile = test/test_files/merge_configurations_of_local_optimizations/test_160190/parameters.pcs
+instance_file = test/test_files/merge_configurations_of_local_optimizations/test_160190/instances.txt
+output_dir = test/test_files/merge_configurations_of_local_optimizations/test_160190/output
+run_obj = quality
+runcount_limit = 500
+deterministic = true
+cost_for_crash = 800000.0
+abort_on_first_run_crash = false
