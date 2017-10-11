@@ -1,3 +1,4 @@
+import os
 import itertools
 import logging
 import numpy as np
@@ -12,6 +13,8 @@ from smac.epm.rf_with_instances import RandomForestWithInstances, RandomForestCl
 from smac.optimizer.local_search import LocalSearch
 from smac.intensification.intensification import Intensifier
 from smac.optimizer import pSMAC
+from smac.optimizer.acquisition import AbstractAcquisitionFunction
+from smac.optimizer.local_search import LocalSearch
 from smac.runhistory.runhistory import RunHistory
 from smac.runhistory.runhistory2epm import AbstractRunHistory2EPM, RunHistory2EPM4ConstraintVariant2
 from smac.stats.stats import Stats
@@ -70,6 +73,7 @@ class SMBO(object):
                  acq_optimizer: LocalSearch,
                  acquisition_func: AbstractAcquisitionFunction,
                  rng: np.random.RandomState,
+		 restore_incumbent: Configuration=None,
                  constraint_variant : ConstraintVariant=ConstraintVariant.VARIANT_1,
                  runhistory2epm_constraint_variant2: RunHistory2EPM4ConstraintVariant2=None,
                  constraint_model: RandomForestClassifierWithInstances=None):
@@ -88,9 +92,6 @@ class SMBO(object):
         runhistory2epm : AbstractRunHistory2EPM
             Object that implements the AbstractRunHistory2EPM to convert runhistory
             data into EPM data
-        runhistory2epms_constraints: AbstractRunHistory2EPM
-            Objects that implement the AbstractRunHistory2EPM to convert runhistory
-            data into EPM constraint data
         intensifier: Intensifier
             intensification of new challengers against incumbent configuration
             (probably with some kind of racing on the instances)
@@ -101,9 +102,6 @@ class SMBO(object):
             id of this run (used for pSMAC)
         model: RandomForestWithInstances
             empirical performance model (right now, we support only
-            RandomForestWithInstances)
-        constraint_models: RandomForestClassifierWithInstances
-            empirical constraint model (right now, we support only
             RandomForestWithInstances)
         acq_optimizer: LocalSearch
             optimizer on acquisition function (right now, we support only a local
@@ -116,8 +114,8 @@ class SMBO(object):
         """
 
         self.logger = logging.getLogger(
-            self.__module__ + "." + self.__class__.__name__)
-        self.incumbent = None
+        self.__module__ + "." + self.__class__.__name__)
+        self.incumbent = restore_incumbent
         self.constraint_variant = constraint_variant
         self.scenario = scenario
         self.config_space = scenario.cs
@@ -135,6 +133,33 @@ class SMBO(object):
         self.acquisition_func = acquisition_func
         self.rng = rng
 
+    def start(self):
+        """Starts the Bayesian Optimization loop.
+        Detects whether we the optimization is restored from previous state.
+        """
+        self.stats.start_timing()
+        # Initialization, depends on input
+        if self.stats.ta_runs == 0 and self.incumbent is None:
+            try:
+                self.incumbent = self.initial_design.run()
+            except FirstRunCrashedException as err:
+                if self.scenario.abort_on_first_run_crash:
+                    raise
+        elif self.stats.ta_runs > 0 and self.incumbent is None:
+            raise ValueError("According to stats there have been runs performed, "
+                             "but the optimizer cannot detect an incumbent. Did "
+                             "you set the incumbent (e.g. after restoring state)?")
+        elif self.stats.ta_runs == 0 and self.incumbent is not None:
+            raise ValueError("An incumbent is specified, but there are no runs "
+                             "recorded in the Stats-object. If you're restoring "
+                             "a state, please provide the Stats-object.")
+        else:
+            # Restoring state!
+            self.logger.info("State Restored! Starting optimization with "
+                             "incumbent %s", self.incumbent)
+            self.logger.info("State restored with following budget:")
+            self.stats.print_stats()
+
     def run(self):
         """Runs the Bayesian optimization loop
 
@@ -143,10 +168,7 @@ class SMBO(object):
         incumbent: np.array(1, H)
             The best found configuration
         """
-        self.stats.start_timing()
-
-        self.incumbent = self.initial_design.run()
-
+        self.start()
 
         # Main BO loop
         iteration = 1
@@ -158,16 +180,15 @@ class SMBO(object):
                            logger=self.logger)
 
             start_time = time.time()
-
             X, Y = self.rh2EPM.transform(self.runhistory)
             
             
+            X_constraint_variant2 = np.empty(shape=0)
+            Y_constraint_variant2 = np.empty(shape=0)
             if self.runhistory2epm_constraint_variant2 is not None and X.shape[0] != 0:
                 X_constraint_variant2, Y_constraint_variant2 = self.runhistory2epm_constraint_variant2.transform(
                                                                   self.runhistory)
-            else:
-                X_constraint_variant2 = None
-                Y_constraint_variant2 = None
+                
 
             self.logger.debug("Search for next configuration")
             # get all found configurations sorted according to acq
@@ -204,7 +225,7 @@ class SMBO(object):
             self.stats.print_stats(debug_out=True)
 
         return self.incumbent
-
+    
     def get_configurations_sorted_by_EI(self, num_configurations_by_random_search_sorted,
                     num_configurations_by_local_search):
         next_configs_by_random_search_sorted = \
@@ -252,11 +273,11 @@ class SMBO(object):
         next_configs_by_acq_value = [_[1] for _ in next_configs_by_acq_value]
 
         challengers = ChallengerList(next_configs_by_acq_value,
-                                     self.config_space, acquisition_func=self.acquisition_func)
+                                     self.config_space)
         return challengers
 
-    def choose_next(self, X: np.ndarray, Y: np.ndarray, X_constraint_variant2: np.ndarray=None, 
-                    Y_constraint_variant2: np.ndarray=None, 
+    def choose_next(self, X: np.ndarray, Y: np.ndarray, X_constraint_variant2: np.ndarray=np.empty(shape=0), 
+                    Y_constraint_variant2: np.ndarray=np.empty(shape=0), 
                     num_configurations_by_random_search_sorted: int=1000,
                     num_configurations_by_local_search: int=None,
                     incumbent_value: float=None):
@@ -301,7 +322,7 @@ class SMBO(object):
             
         self.model.train(X, Y)
        
-        if (X_constraint_variant2 is not None and Y_constraint_variant2 is not None):
+        if (X_constraint_variant2.shape[0] != 0 and Y_constraint_variant2.shape[0] != 0):
             self.constraint_model.train(X=X_constraint_variant2, Y=Y_constraint_variant2)
 
         if incumbent_value is None:
@@ -460,8 +481,7 @@ class SMBO(object):
         
         # Cannot use zip here because the indices array cannot index the
         # rand_configs list, because the second is a pure python list
-        
-        #return [(acq_values[ind][0], configs[ind]) for ind in indices[::-1]]
+        return [(acq_values[ind][0], configs[ind]) for ind in indices[::-1]]
 
     def _get_timebound_for_intensification(self, time_spent):
         """Calculate time left for intensify from the time spent on
@@ -508,12 +528,12 @@ class ChallengerList(object):
         ConfigurationSpace from which to sample new random configurations.
     """
 
-    def __init__(self, challengers, configuration_space, acquisition_func: AbstractAcquisitionFunction):
+    def __init__(self, challengers, configuration_space):
         self.challengers = challengers
         self.configuration_space = configuration_space
         self._index = 0
         self._next_is_random = False
-        self.acquisition_func = acquisition_func
+
 
     def __iter__(self):
         return self
@@ -525,12 +545,6 @@ class ChallengerList(object):
             self._next_is_random = False
             config = self.configuration_space.sample_configuration()
             config.origin = 'Random Search'
-#             try:
-#                 success_prob = self.acquisition_func.compute_success_probabilities(
-#                     convert_configurations_to_array([config]))
-#             except NotImplementedError:
-#                 success_prob = None
-#             config.set_predicted_success_probability(success_prob)
             return config
         else:
             self._next_is_random = True

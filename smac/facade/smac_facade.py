@@ -69,8 +69,9 @@ class SMAC(object):
                  initial_design: InitialDesign=None,
                  initial_configurations: typing.List[Configuration]=None,
                  stats: Stats=None,
+                 restore_incumbent: Configuration=None,
                  rng: np.random.RandomState=None,
-                 constraint_model: RandomForestClassifierWithInstances=None,
+		 constraint_model: RandomForestClassifierWithInstances=None,
                  constraint_variant: ConstraintVariant=ConstraintVariant.VARIANT_1, 
                  runhistory2epm_constraint_variant2: RunHistory2EPM4ConstraintVariant2=None):
         """Constructor
@@ -97,9 +98,6 @@ class SMAC(object):
         model : AbstractEPM
             Model that implements train() and predict(). Will use a
             :class:`~smac.epm.rf_with_instances.RandomForestWithInstances` if not set.
-        constraint_model : AbstractEPM
-            Model that implements train() and predict(). Will use a
-            :class:`~smac.epm.rf_with_instances.RandomForestClassifierWithInstances` if not set.
         runhistory2epm : ~smac.runhistory.runhistory2epm.RunHistory2EMP
             Object that implements the AbstractRunHistory2EPM. If None,
             will use :class:`~smac.runhistory.runhistory2epm.RunHistory2EPM4Cost`
@@ -115,11 +113,8 @@ class SMAC(object):
             optional stats object
         rng : np.random.RandomState
             Random number generator
-        support_constraints : bool
-            Defines if a constraint model is learned or not.
-        runhistory2epm_constraints : ~smac.runhistory.runhistory2epm.RunHistory2EMP
-            Object that implements the AbstractRunHistory2EPM. If None,
-            will use :class:`~smac.runhistory.runhistory2epm.RunHistory2EPM4Constraints`
+        restore_incumbent: Configuration
+            incumbent used if restoring to previous state
         """
 
         self.logger = logging.getLogger(
@@ -364,7 +359,9 @@ class SMAC(object):
                            model=model,
                            acq_optimizer=local_search,
                            acquisition_func=acquisition_function,
-                           rng=rng, constraint_model=constraint_model,
+                           rng=rng,
+			   restore_incumbent=restore_incumbent,
+                           constraint_model=constraint_model,
                            constraint_variant=constraint_variant,
                            runhistory2epm_constraint_variant2=runhistory2epm_constraint_variant2)
 
@@ -411,6 +408,7 @@ class SMAC(object):
         try:
             incumbent = self.solver.run()
         finally:
+            self.solver.stats.save()
             self.solver.stats.print_stats()
             self.logger.info("Final Incumbent: %s" % (self.solver.incumbent))
             self.runhistory = self.solver.runhistory
