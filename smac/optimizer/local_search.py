@@ -50,15 +50,15 @@ class LocalSearch(object):
 
         self.logger = logging.getLogger(self.__module__ + "." + self.__class__.__name__)
 
-    def maximize(self, start_point: Configuration, *args):
+    def maximize(self, start_points, *args):
         """Starts a local search from the given startpoint and quits
         if either the max number of steps is reached or no neighbor
         with an higher improvement was found.
 
         Parameters
         ----------
-        start_point:  np.array(1, D)
-            The point from where the local search starts
+        start_points:  np.array(1, D)
+            The points from where the local search starts
         *args:
             Additional parameters that will be passed to the
             acquisition function
@@ -71,57 +71,81 @@ class LocalSearch(object):
             The acquisition value of the incumbent
 
         """
-        incumbent = start_point
+        if isinstance(start_points, Configuration):
+            start_points = [start_points]
+        incumbents = start_points
         # Compute the acquisition value of the incumbent
-        incumbent_array = convert_configurations_to_array([incumbent])
-        acq_val_incumbent = self.acquisition_function(incumbent_array, *args)
+        incumbent_array = convert_configurations_to_array(incumbents)
+        num_incumbents = len(incumbents)
+        acq_val_incumbents = self.acquisition_function(incumbent_array, *args)
+        if num_incumbents == 1:
+            acq_val_incumbents = [acq_val_incumbents]
+        active = [True] * num_incumbents
 
-        local_search_steps = 0
-        neighbors_looked_at = 0
-        time_n = []
+        local_search_steps = [0] * num_incumbents
+        neighbors_looked_at = [0] * num_incumbents
+        times = []
+
         while True:
 
-            local_search_steps += 1
-            if local_search_steps % 1000 == 0:
-                self.logger.warn("Local search took already %d iterations."
-                                 "Is it maybe stuck in a infinite loop?",
-                                 local_search_steps)
+            # local_search_steps += 1
+            #if local_search_steps % 1000 == 0:
+            #    self.logger.warning("Local search took already %d iterations."
+            #                        "Is it maybe stuck in a infinite loop?",
+            #                        local_search_steps)
 
-            # Get neighborhood of the current incumbent
-            # by randomly drawing configurations
-            changed_inc = False
+            changed_inc = np.zeros((num_incumbents), dtype=np.bool)
+            neighborhood_iterators = []
+            for i, inc in enumerate(incumbents):
+                if active[i]:
+                    neighborhood_iterators.append(get_one_exchange_neighbourhood(
+                        inc, seed=self.rng.seed()))
+                    local_search_steps[i] += 1
+                else:
+                    neighborhood_iterators.append(None)
 
-            # Get one exchange neighborhood returns an iterator (in contrast of
-            # the previously returned list).
-            all_neighbors = get_one_exchange_neighbourhood(
-                incumbent, seed=self.rng.seed())
+            while np.any(active) and np.any(~changed_inc[active]):
 
-            for neighbor in all_neighbors:
-                s_time = time.time()
-                neighbor_array_ = convert_configurations_to_array([neighbor])
+                # gather all neighbors
+                neighbors = []
+                for i, neighborhood_iterator in enumerate(neighborhood_iterators):
+                    if active[i] and not changed_inc[i]:
+                        try:
+                            neighbors.append(next(neighborhood_iterator))
+                            neighbors_looked_at[i] += 1
+                        except StopIteration:
+                            active[i] = False
 
+                if len(neighbors) == 0:
+                    continue
+
+                neighbor_array_ = convert_configurations_to_array(neighbors)
+                start_time = time.time()
                 acq_val = self.acquisition_function(neighbor_array_, *args)
+                end_time = time.time()
+                times.append(end_time - start_time)
+                if num_incumbents == 1:
+                    acq_val = [acq_val]
 
-                neighbors_looked_at += 1
+                acq_index = 0
+                for i in range(num_incumbents):
+                    if not active[i] or changed_inc[i]:
+                        continue
+                    if acq_val[acq_index] > acq_val_incumbents[i] + self.epsilon:
+                        self.logger.debug("Switch to one of the neighbors")
+                        incumbents[i] = neighbors[acq_index]
+                        acq_val_incumbents[i] = acq_val[acq_index]
+                        changed_inc[i] = True
+                    acq_index += 1
 
-                time_n.append(time.time() - s_time)
-
-                if acq_val > acq_val_incumbent + self.epsilon:
-                    self.logger.debug("Switch to one of the neighbors")
-                    incumbent = neighbor
-                    acq_val_incumbent = acq_val
-                    changed_inc = True
-                    break
-
-            if (not changed_inc) or \
-                    (self.max_iterations is not None and
-                     local_search_steps == self.max_iterations):
-                self.logger.debug("Local search took %d steps and looked at %d "
-                                  "configurations. Computing the acquisition "
-                                  "value for one configuration took %f seconds"
-                                  " on average.",
-                                  local_search_steps, neighbors_looked_at,
-                                  np.mean(time_n))
+            if (not np.any(changed_inc)) or (self.max_iterations != None
+                                             and local_search_steps == self. max_iterations):
+                self.logger.debug("Local search took %s steps and looked at %s configurations. "
+                                  "Call to acquisition function took %f seconds on average.",
+                                  local_search_steps, neighbors_looked_at, np.mean(times))
                 break
 
-        return incumbent, acq_val_incumbent
+        for inc in incumbents:
+            inc.origin = 'Local search'
+
+        return [(i, a) for i, a in zip(acq_val_incumbents, incumbents)]

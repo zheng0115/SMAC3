@@ -23,15 +23,18 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
     def __str__(self):
         return type(self).__name__ + " (" + self.long_name + ")"
 
-    def __init__(self, model: AbstractEPM, **kwargs):
-        """Constructor
+    def __init__(self, model: AbstractEPM):
+        """
+        Abstract base class for acquisition functions.
 
         Parameters
         ----------
         model : AbstractEPM
             Models the objective function.
+
         """
         self.model = model
+
         self.logger = logging.getLogger(
             self.__module__ + "." + self.__class__.__name__)
 
@@ -49,11 +52,13 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
         ----------
         kwargs
         """
+
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
     def __call__(self, X: np.ndarray):
-        """Computes the acquisition value for a given X
+        """
+        Computes the acquisition value for a given point X
 
         Parameters
         ----------
@@ -68,6 +73,7 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
         np.ndarray(N, 1)
             acquisition values for X
         """
+
         if len(X.shape) == 1:
             X = X[np.newaxis, :]
 
@@ -79,7 +85,8 @@ class AbstractAcquisitionFunction(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _compute(self, X: np.ndarray):
-        """Computes the acquisition value for a given point X. This function has
+        """
+        Computes the acquisition value for a given point X. This function has
         to be overwritten in a derived class.
 
         Parameters
@@ -109,10 +116,8 @@ class EI(AbstractAcquisitionFunction):
 
     def __init__(self,
                  model: AbstractEPM,
-                 par: float=0.0,
-                 **kwargs):
-        """Constructor
-
+                 par: float=0.0):
+        """
         Parameters
         ----------
         model : AbstractEPM
@@ -128,8 +133,9 @@ class EI(AbstractAcquisitionFunction):
         self.par = par
         self.eta = None
 
-    def _compute(self, X: np.ndarray, **kwargs):
-        """Computes the EI value and its derivatives.
+    def _compute(self, X: np.ndarray):
+        """
+        Computes the EI value and its derivatives.
 
         Parameters
         ----------
@@ -143,6 +149,7 @@ class EI(AbstractAcquisitionFunction):
         np.ndarray(N,1)
             Expected Improvement of X
         """
+
         if len(X.shape) == 1:
             X = X[:, np.newaxis]
 
@@ -164,8 +171,7 @@ class EI(AbstractAcquisitionFunction):
 
         if (f < 0).any():
             raise ValueError(
-                "Expected Improvement is smaller than 0 for at least one "
-                "sample.")
+                "Expected Improvement is smaller than 0 for at least one sample.")
 
         return f
 
@@ -173,11 +179,14 @@ class EI(AbstractAcquisitionFunction):
 class EIPS(EI):
     def __init__(self,
                  model: AbstractEPM,
-                 par: float=0.0,
-                 **kwargs):
-        r"""Computes for a given x the expected improvement as
+                 par: float=0.0):
+        r"""
+        Computes for a given x the expected improvement as
         acquisition value.
-        :math:`EI(X) := \frac{\mathbb{E}\left[ \max\{0, f(\mathbf{X^+}) - f_{t+1}(\mathbf{X}) - \xi\right] \} ]} {np.log10(r(x))}`,
+        :math:`EI(X) :=
+            \frac{\mathbb{E}\left[ \max\{0, f(\mathbf{X^+}) -
+                  f_{t+1}(\mathbf{X}) - \xi\right] \} ]}
+                  {np.log10(r(x))}`,
         with :math:`f(X^+)` as the incumbent and :math:`r(x)` as runtime.
 
         Parameters
@@ -190,11 +199,13 @@ class EIPS(EI):
             Controls the balance between exploration and exploitation of the
             acquisition function.
         """
+
         super(EIPS, self).__init__(model, par=par)
         self.long_name = 'Expected Improvement per Second'
 
-    def _compute(self, X: np.ndarray, **kwargs):
-        """Computes the EIPS value.
+    def _compute(self, X: np.ndarray):
+        """
+        Computes the EIPS value.
 
         Parameters
         ----------
@@ -208,6 +219,7 @@ class EIPS(EI):
         np.ndarray(N,1)
             Expected Improvement per Second of X
         """
+
         if len(X.shape) == 1:
             X = X[:, np.newaxis]
 
@@ -245,9 +257,9 @@ class LogEI(AbstractAcquisitionFunction):
 
     def __init__(self,
                  model: AbstractEPM,
-                 par: float=0.0,
-                 **kwargs):
-        r"""Computes for a given x the logarithm expected improvement as
+                 par: float=0.0):
+        r"""
+        Computes for a given x the logarithm expected improvement as
         acquisition value.
 
         Parameters
@@ -264,8 +276,9 @@ class LogEI(AbstractAcquisitionFunction):
         self.par = par
         self.eta = None
 
-    def _compute(self, X: np.ndarray, **kwargs):
-        """Computes the EI value and its derivatives.
+    def _compute(self, X: np.ndarray):
+        """
+        Computes the EI value and its derivatives.
 
         Parameters
         ----------

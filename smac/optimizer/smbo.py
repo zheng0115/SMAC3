@@ -395,13 +395,14 @@ class SMBO(object):
                ordered by their acquisition function value
         """
         configs_acq = []
-
+        configs_acq = self.acq_optimizer.maximize(start_points=init_points)
         # Start N local search from different random start points
-        for start_point in init_points:
-            configuration, acq_val = self.acq_optimizer.maximize(start_point)
-
-            configuration.origin = "Local Search"
-            configs_acq.append((acq_val[0], configuration))
+        #for start_point in init_points:
+        #    configuration, acq_val = self.acq_optimizer.maximize(start_point)
+        #    configuration = configuration[0]
+        #    acq_val = acq_val[0]
+        #    configuration.origin = 'Local Search'
+        #    configs_acq.append((acq_val[0], configuration))
 
         # shuffle for random tie-break
         random.shuffle(configs_acq, self.rng.rand)

@@ -121,6 +121,8 @@ class AbstractRunHistory2EPM(object):
                              "smac.epm.base_imputor.BaseImputor, but %s" %
                              type(self.imputor))
 
+    # TODO: replace by _build_matrices, which returns a matrix with succesful
+    # and a matrix with failed runs to predict stochastic constraints
     @abc.abstractmethod
     def _build_matrix(self, run_dict: typing.Mapping[RunKey, RunValue],
                       runhistory: RunHistory,
