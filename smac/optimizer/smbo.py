@@ -357,7 +357,7 @@ class SMBO(object):
             number of repetitions in nondeterministic algorithms (in
             deterministic will be fixed to 1)
         n_jobs: int
-            number of parallel processes used by joblib
+            number of parallel processes uTotal timesed by joblib
 
         Returns
         -------
