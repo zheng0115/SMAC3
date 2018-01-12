@@ -314,7 +314,7 @@ class Validator(object):
             feature_array_size = len(self.scen.cs.get_hyperparameters())
         X_pred = np.empty((len(runs), feature_array_size))
         for idx, run in enumerate(runs):
-            if hasattr(self.scen, "feature_dict") and run.inst != None:
+            if hasattr(self.scen, "feature_dict") and run.inst != None and self.scen.feature_dict:
                 X_pred[idx] = np.hstack([convert_configurations_to_array([run.config])[0],
                                          self.scen.feature_dict[run.inst]])
             else:
